@@ -10,10 +10,14 @@
   "author": "Laa Miao Miao",
   "license": "ISC",
   "dependencies": {
+    "bcrypt": "^5.0.1",
     "dotenv": "^16.0.1",
     "express": "^4.18.1",
+    "firebase-admin": "^11.0.0",
     "jsonwebtoken": "^8.5.1",
     "knex": "^2.0.0",
+    "moment": "^2.29.4",
+    "moment-timezone": "^0.5.34",
     "mysql": "^2.18.1"
   }
 }
