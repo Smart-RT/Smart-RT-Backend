@@ -80,6 +80,13 @@ router.post('/login', async (req, res) => {
 });
 // -- End Login
 
+// -- UID Firebase
+router.post('/verifyUID/:uid', async (req, res) => {
+    let { uid } = req.params;
+    return res.status(200).json('OK');
+});
+// -- End UID Firebase
+
 router.get('/', async (req, res) => {
     let users = await knex('users');
     return res.status(200).json(users);
