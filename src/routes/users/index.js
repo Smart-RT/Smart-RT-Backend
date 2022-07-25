@@ -5,6 +5,7 @@ const moment = require('moment-timezone');
 const jwt = require('jsonwebtoken');
 const knex = require('../../database');
 const { stringUtils } = require('../../utils');
+const firebaseAdmin = require('firebase-admin');
 
 // -- Register
 router.post('/register', async (req, res) => {
@@ -31,10 +32,10 @@ router.post('/register', async (req, res) => {
             let newUser = await knex('users').insert({
                 full_name: namaLengkap,
                 gender: jenisKelamin,
-                born_date: moment(tanggalLahir, 'YYYY/MM/DD').toDate(),
+                born_date: moment(tanggalLahir, 'YYYY-MM-DD').toDate(),
                 phone: noTelp,
                 password: hashedPassword,
-                created_at: moment().toDate()
+                created_at: moment().toDate(),
             });
             return res.status(200).json(newUser);
         }
@@ -50,28 +51,36 @@ router.post('/login', async (req, res) => {
     let { noTelp, kataSandi } = req.body;
     try {
         let user = await knex('users').where('phone', '=', noTelp).first();
-        if (!user) { return res.status(400).json('Nomor Telepon tidak terdaftar'); }
+        if (!user) {
+            return res.status(400).json('Nomor Telepon tidak terdaftar');
+        }
 
         let passwordSama = bcrypt.compareSync(kataSandi, user.password);
-        if (!passwordSama) { return res.status(400).json('Kata Sandi salah'); }
+        if (!passwordSama) {
+            return res.status(400).json('Kata Sandi salah');
+        }
 
         let payload = {
             id: user.id,
             phone: user.phone,
-        }
+        };
 
         let jwtToken = jwt.sign(payload, process.env.JWT_SECRET, {
-            expiresIn: process.env.JWT_EXPIRE_TIME
+            expiresIn: process.env.JWT_EXPIRE_TIME,
         });
 
-        let refreshToken = [...Array(15)].map(i => (~~(Math.random() * 36)).toString(36)).join('');
+        let refreshToken = [...Array(15)]
+            .map((i) => (~~(Math.random() * 36)).toString(36))
+            .join('');
 
-        await knex('users').update({ refresh_token: refreshToken }).where('id', '=', user.id);
+        await knex('users')
+            .update({ refresh_token: refreshToken })
+            .where('id', '=', user.id);
 
         return res.status(200).json({
             user: payload,
             token: jwtToken,
-            refreshToken: refreshToken
+            refreshToken: refreshToken,
         });
     } catch (error) {
         console.error(error);
@@ -83,6 +92,10 @@ router.post('/login', async (req, res) => {
 // -- UID Firebase
 router.post('/verifyUID/:uid', async (req, res) => {
     let { uid } = req.params;
+    let firebaseAuth = firebaseAdmin.auth();
+    let userFirebase = await firebaseAuth.getUser(uid);
+    if(!userFirebase.phoneNumber) return res.status(400).json('UID tidak valid');
+    console.log(userFirebase);
     return res.status(200).json('OK');
 });
 // -- End UID Firebase
