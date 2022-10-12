@@ -13,6 +13,8 @@
     const database = require('./src/database');
     // Import Routes
     const routes = require('./src/routes');
+    // Import Middleware Auth
+    const { auth } = require('./src/middleware/auth');
 // -- IMPORT
 
 // Inisialisasi Firebase Admin SDK 
@@ -30,7 +32,7 @@ server.use(express.urlencoded({ extended: true }));
 server.use('/public', express.static(path.join(__dirname, 'public')));
 
 // Masukkan router yang sudah dibuat, dan dapat diakses pada url /api (contoh localhost:3000/api)
-server.use('/api', routes);
+server.use('/api', auth, routes);
 
 // Jalankan express server
 server.listen(process.env.PORT, () => {

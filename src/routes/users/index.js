@@ -4,8 +4,10 @@ const bcrypt = require('bcrypt');
 const moment = require('moment-timezone');
 const jwt = require('jsonwebtoken');
 const knex = require('../../database');
-const { stringUtils } = require('../../utils');
+const { stringUtils, tokenUtils } = require('../../utils');
 const firebaseAdmin = require('firebase-admin');
+const { uploadItemImage } = require('../../middleware/upload');
+const { isAuthenticated } = require('../../middleware/auth');
 
 // -- Register
 router.post('/register', async (req, res) => {
@@ -51,6 +53,7 @@ router.post('/login', async (req, res) => {
     let { noTelp, kataSandi } = req.body;
     try {
         let user = await knex('users').where('phone', '=', noTelp).first();
+
         if (!user) {
             return res.status(400).json('Nomor Telepon tidak terdaftar');
         }
@@ -60,18 +63,16 @@ router.post('/login', async (req, res) => {
             return res.status(400).json('Kata Sandi salah');
         }
 
-        let payload = {
-            id: user.id,
-            phone: user.phone,
-        };
+        delete user.password;
 
-        let jwtToken = jwt.sign(payload, process.env.JWT_SECRET, {
-            expiresIn: process.env.JWT_EXPIRE_TIME,
-        });
+        let payload = { ...user };
 
-        let refreshToken = [...Array(15)]
-            .map((i) => (~~(Math.random() * 36)).toString(36))
-            .join('');
+        // let jwtToken = jwt.sign(payload, process.env.JWT_SECRET, {
+        //     expiresIn: process.env.JWT_EXPIRE_TIME,
+        // });
+        let jwtToken = tokenUtils.createJWT(payload);
+
+        let refreshToken = tokenUtils.createRefreshToken(15);
 
         await knex('users')
             .update({ refresh_token: refreshToken })
@@ -94,11 +95,39 @@ router.post('/verifyUID/:uid', async (req, res) => {
     let { uid } = req.params;
     let firebaseAuth = firebaseAdmin.auth();
     let userFirebase = await firebaseAuth.getUser(uid);
-    if(!userFirebase.phoneNumber) return res.status(400).json('UID tidak valid');
+    if (!userFirebase.phoneNumber)
+        return res.status(400).json('UID tidak valid');
     console.log(userFirebase);
     return res.status(200).json('OK');
 });
 // -- End UID Firebase
+
+// -- Update Profile Picture
+router.patch(
+    '/uploadProfilePicture/:uid',
+    isAuthenticated,
+    uploadItemImage.single('profilePicture'),
+    async (req, res) => {
+        let { uid } = req.params;
+
+        //Cek token dengan user id di URL sama
+        if (req.authenticatedUser.id != uid) {
+            return res.status(400).json('ID User tidak valid');
+        }
+
+        // Cek user ID
+        let user = await knex('users').where('id', '=', uid).first();
+        if (!user) {
+            return res.status(400).json('ID User tidak valid');
+        }
+
+        await knex('users')
+            .update({ photo_profile_img: req.file.filename })
+            .where('id', '=', uid);
+        return res.status(200).json('Upload Berhasil');
+    }
+);
+// -- End Update Profile Picture
 
 router.get('/', async (req, res) => {
     let users = await knex('users');
