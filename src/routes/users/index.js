@@ -129,6 +129,34 @@ router.patch(
 );
 // -- End Update Profile Picture
 
+// -- Refresh Token
+router.post('/refreshToken/:id', async (req, res) => {
+    let { id } = req.params;
+    let { refreshTokenUser } = req.body;
+    try {
+        let user = await knex('users')
+            .where('id', '=', id)
+            .where('refresh_token', '=', refreshTokenUser)
+            .first();
+        if (!user) return res.status(400).json('Refresh Token Tidak Valid');
+        delete user.password;
+        let payload = { ...user };
+        let jwtToken = tokenUtils.createJWT(payload);
+        let refreshToken = tokenUtils.createRefreshToken(15);
+        await knex('users')
+            .update({ refresh_token: refreshToken })
+            .where('id', '=', user.id);
+        return res.status(200).json({
+            user: payload,
+            token: jwtToken,
+            refreshToken: refreshToken,
+        });
+    } catch (error) {
+        return res.status(500).json('ERROR');
+    }
+});
+// -- End Refresh Token
+
 router.get('/', async (req, res) => {
     let users = await knex('users');
     return res.status(200).json(users);

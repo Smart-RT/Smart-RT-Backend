@@ -6,7 +6,7 @@ const createRefreshToken = (length) => {
 };
 
 const createJWT = (payload) => {
-    return jwt.sign(payload, `${process.env.JWT_SECRET_KEY}`, {
+    return jwt.sign(payload, `${process.env.JWT_SECRET}`, {
         expiresIn: process.env.JWT_EXPIRE_TIME,
     });
 };
