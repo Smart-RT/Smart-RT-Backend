@@ -102,7 +102,7 @@ router.post('/verifyUID/:uid', async (req, res) => {
 });
 // -- End UID Firebase
 
-// -- Update Profile Picture
+// -- UPLOAD PROFILE PICTURE
 router.patch(
     '/uploadProfilePicture/:uid',
     isAuthenticated,
@@ -127,7 +127,49 @@ router.patch(
         return res.status(200).json('Upload Berhasil');
     }
 );
-// -- End Update Profile Picture
+// -- END UPLOAD PROFILE PICTURE
+
+
+// -- UPDATE PROFILE (Nama, Jenis Kelamin, Tanggal Lahir, Alamat)
+router.patch('/updateProfile/:uid', isAuthenticated, async (req, res) => {
+    let { uid } = req.params;
+    let { full_name, gender, born_date, address } = req.body;
+
+    try {
+        // Cek token dengan user id di URL sama
+        if (req.authenticatedUser.id != uid) {
+            return res.status(400).json('ID User tidak valid');
+        }
+
+        // Cek user ID dan Data Lainnya
+        let user = await knex('users').where('id', '=', uid).first();
+        if (!user || 
+            stringUtils.isEmptyString(full_name) ||
+            stringUtils.isEmptyString(gender) ||
+            stringUtils.isEmptyString(born_date) ||
+            stringUtils.isEmptyString(address)) {
+            return res.status(400).json('ID User tidak valid');
+        } else{
+            await knex('users')
+            .update({ 
+                full_name: full_name, 
+                gender: gender,
+                born_date:  moment(born_date, 'YYYY-MM-DD').toDate(),
+                address: address
+            })
+            .where('id', '=', uid);
+            return res.status(200).json('Upload Berhasil');
+        }
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json('ERROR!');
+    }
+
+    
+
+   
+})
+// -- END UPDATE PROFILE (Nama, Jenis Kelamin, Tanggal Lahir, Alamat)
 
 // -- Refresh Token
 router.post('/refreshToken/:id', async (req, res) => {
@@ -156,6 +198,10 @@ router.post('/refreshToken/:id', async (req, res) => {
     }
 });
 // -- End Refresh Token
+
+
+
+
 
 router.get('/', async (req, res) => {
     let users = await knex('users');
