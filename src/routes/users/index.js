@@ -103,8 +103,7 @@ router.post('/verifyUID/:uid', async (req, res) => {
 // -- End UID Firebase
 
 // -- UPLOAD PROFILE PICTURE
-router.patch(
-    '/uploadProfilePicture/:uid',
+router.patch('/uploadProfilePicture/:uid',
     isAuthenticated,
     uploadItemImage.single('profilePicture'),
     async (req, res) => {
@@ -128,7 +127,6 @@ router.patch(
     }
 );
 // -- END UPLOAD PROFILE PICTURE
-
 
 // -- UPDATE PROFILE (Nama, Jenis Kelamin, Tanggal Lahir, Alamat)
 router.patch('/updateProfile/:uid', isAuthenticated, async (req, res) => {
