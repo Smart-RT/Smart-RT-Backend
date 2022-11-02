@@ -13,7 +13,7 @@ const {
 } = require('../../middleware/upload');
 const { isAuthenticated } = require('../../middleware/auth');
 
-// -- Register
+// -- REGISTER
 router.post('/register', async (req, res) => {
     let { namaLengkap, jenisKelamin, tanggalLahir, noTelp, kataSandi } =
         req.body;
@@ -50,9 +50,9 @@ router.post('/register', async (req, res) => {
         return res.status(500).json('ERROR!');
     }
 });
-// -- End Register
+// -- End REGISTER
 
-// -- Login
+// -- LOGIN
 router.post('/login', async (req, res) => {
     let { noTelp, kataSandi } = req.body;
     try {
@@ -81,9 +81,11 @@ router.post('/login', async (req, res) => {
         await knex('users')
             .update({ refresh_token: refreshToken })
             .where('id', '=', user.id);
-        
-        let userRoleReq = await knex('user_role_requests').where('requester_id', '=', user.id).orderBy('id', 'desc');
-        payload.user_role_requests=userRoleReq;
+
+        let userRoleReq = await knex('user_role_requests')
+            .where('requester_id', '=', user.id)
+            .orderBy('id', 'desc');
+        payload.user_role_requests = userRoleReq;
         return res.status(200).json({
             user: payload,
             token: jwtToken,
@@ -94,9 +96,9 @@ router.post('/login', async (req, res) => {
         return res.status(500).json('ERROR!');
     }
 });
-// -- End Login
+// -- End LOGIN
 
-// -- UID Firebase
+// -- UID FIREBASE
 router.post('/verifyUID/:uid', async (req, res) => {
     let { uid } = req.params;
     let firebaseAuth = firebaseAdmin.auth();
@@ -106,7 +108,7 @@ router.post('/verifyUID/:uid', async (req, res) => {
     console.log(userFirebase);
     return res.status(200).json('OK');
 });
-// -- End UID Firebase
+// -- End UID FIREBASE
 
 // -- UPLOAD PROFILE PICTURE
 router.patch(
@@ -166,7 +168,7 @@ router.patch('/updateProfile/:uid', isAuthenticated, async (req, res) => {
                 gender: gender,
                 born_date: moment
                     .tz(born_date, 'YYYY-MM-DD', 'Asia/Jakarta')
-                    .format("YYYY-MM-DD"),
+                    .format('YYYY-MM-DD'),
                 address: address,
             })
             .where('id', '=', uid);
@@ -178,7 +180,7 @@ router.patch('/updateProfile/:uid', isAuthenticated, async (req, res) => {
 });
 // -- END UPDATE PROFILE (Nama, Jenis Kelamin, Tanggal Lahir, Alamat)
 
-// -- Refresh Token
+// -- REFRESH TOKEN
 router.post('/refreshToken/:id', async (req, res) => {
     let { id } = req.params;
     let { refreshTokenUser } = req.body;
@@ -204,9 +206,9 @@ router.post('/refreshToken/:id', async (req, res) => {
         return res.status(500).json('ERROR');
     }
 });
-// -- End Refresh Token
+// -- END REFRESH TOKEN
 
-// -- Get My Profile
+// -- GET MY PROFILE
 router.get('/myprofile', isAuthenticated, async (req, res) => {
     try {
         let id = req.authenticatedUser.id;
@@ -217,9 +219,9 @@ router.get('/myprofile', isAuthenticated, async (req, res) => {
         return res.status(500).json('ERROR');
     }
 });
-// -- End Get My Profile
+// -- END GET MY PROFILE
 
-// -- Upload Signature PNG
+// -- UPLOAD SIGNATURE PNG
 router.patch(
     '/uploadSignatureImage/:uid',
     isAuthenticated,
@@ -244,7 +246,7 @@ router.patch(
         return res.status(200).json(req.file.filename);
     }
 );
-// -- Upload Signature PNG
+// -- END UPLOAD SIGNATURE PNG
 
 // -- REQ USER ROLE
 router.post(
@@ -262,7 +264,9 @@ router.post(
                 return res.status(400).json('ID User tidak valid');
             }
 
-            let userRoleReqActive = await knex('user_role_requests').where('confirmater_id', 'IS', null).first();
+            let userRoleReqActive = await knex('user_role_requests')
+                .where('confirmater_id', 'IS', null)
+                .first();
             if (userRoleReqActive) {
                 return res.status(400).json('Req Role masih ada yang active');
             }
@@ -294,7 +298,9 @@ router.post(
                     request_role: request_role,
                     created_at: moment().toDate(),
                 });
-                let newReq = await knex('user_role_requests').where('id', '=', newID).first();
+                let newReq = await knex('user_role_requests')
+                    .where('id', '=', newID)
+                    .first();
                 return res.status(200).json(newReq);
             }
             // Req Bendahara || Sekretaris || Wakil
@@ -374,12 +380,15 @@ router.patch('/updateUserRoleRequest', isAuthenticated, async (req, res) => {
             return res.status(400).json('Data tidak valid');
         }
 
-        if (userRoleRequest.confirmater_role_id != byuid.user_role && userRoleRequest.requester_id != byuid.id) {
+        if (
+            userRoleRequest.confirmater_role_id != byuid.user_role &&
+            userRoleRequest.requester_id != byuid.id
+        ) {
             return res.status(400).json('Anda tidak memiliki privillage');
         }
-        
+
         if (eval(isAccepted)) {
-            console.log('MASOKKKKKK')
+            console.log('MASOKKKKKK');
             let wilayah = await knex('areas')
                 .where('area_code', '=', userRoleRequest.area_id)
                 .first();
@@ -421,7 +430,9 @@ router.patch('/updateUserRoleRequest', isAuthenticated, async (req, res) => {
                 })
                 .where('id', '=', user_role_requests_id);
         }
-        let userRoleReqAfterUpdate = await knex('user_role_requests').where('id', '=', user_role_requests_id).first();
+        let userRoleReqAfterUpdate = await knex('user_role_requests')
+            .where('id', '=', user_role_requests_id)
+            .first();
         return res.status(200).json(userRoleReqAfterUpdate);
     } catch (error) {
         console.error(error);
@@ -429,18 +440,6 @@ router.patch('/updateUserRoleRequest', isAuthenticated, async (req, res) => {
     }
 });
 // -- END UPDATE USER ROLE (Konfirmasi Req User Role)
-
-// // -- GET DATA REQ USER ROLE 
-// router.get('/reqUserRole/:uid', isAuthenticated, async(req,res)=>{
-//     try {
-//         let { uid } = req.params;
-//         let reqUpdateRole = await knex('user_role_requests').where('requester_id', '=', uid).orderBy('created_at', 'desc');
-//         return res.status(200).json(reqUpdateRole);
-//     } catch (error) {
-//         return res.status(500).json('ERROR');
-//     }
-// });
-// // -- END GET DATA REQ USER ROLE
 
 router.get('/', async (req, res) => {
     let users = await knex('users');

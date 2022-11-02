@@ -5,7 +5,7 @@ const knex = require('../../database');
 // GET SUB DISTRICTS
 router.get('/subDistricts', async (req, res) => {
     try {
-        let subDistricts = await knex('sub_districts');
+        let subDistricts = await knex('sub_districts').orderBy('name');
         return res.status(200).json(subDistricts);
     } catch (error) {
         console.error(error);
@@ -37,7 +37,7 @@ router.get('/urbanVillages', async (req, res) => {
             };
         });
 
-        return res.status(200).json({ dataKelurahan: urbanVillages });
+        return res.status(200).json(urbanVillages);
     } catch (error) {
         console.error(error);
         return res.status(500).json('ERROR!');
