@@ -6,12 +6,16 @@ const jwt = require('jsonwebtoken');
 const knex = require('../../database');
 const { stringUtils, tokenUtils } = require('../../utils');
 const firebaseAdmin = require('firebase-admin');
+const fs = require('fs-extra');
+const path = require('path');
+
 const {
     uploadItemImage,
     uploadSignatureImage,
     uploadItemFileLampiran,
 } = require('../../middleware/upload');
 const { isAuthenticated } = require('../../middleware/auth');
+const { randomVarchar } = require('../../utils/strings');
 
 // -- REGISTER
 router.post('/register', async (req, res) => {
@@ -105,7 +109,7 @@ router.post('/verifyUID/:uid', async (req, res) => {
     let userFirebase = await firebaseAuth.getUser(uid);
     if (!userFirebase.phoneNumber)
         return res.status(400).json('UID tidak valid');
-    console.log(userFirebase);
+    
     return res.status(200).json('OK');
 });
 // -- End UID FIREBASE
@@ -141,7 +145,7 @@ router.patch(
 router.patch('/updateProfile/:uid', isAuthenticated, async (req, res) => {
     let { uid } = req.params;
     let { full_name, gender, born_date, address } = req.body;
-    console.log(born_date);
+    
     try {
         // Cek token dengan user id di URL sama
         if (req.authenticatedUser.id != uid) {
@@ -252,18 +256,28 @@ router.patch(
 router.post(
     '/reqUserRole',
     isAuthenticated,
-    uploadItemFileLampiran.single('fileLampiran'),
+    uploadItemFileLampiran.fields([
+        { name: 'ktp', maxCount: 1 },
+        { name: 'ktpSelfie', maxCount: 1 },
+        { name: 'fileLampiran', maxCount: 1 },
+    ]),
     async (req, res) => {
         let uid = req.authenticatedUser.id;
         let { request_role, request_code } = req.body;
-        console.log(req.file);
+        
         try {
-            // Cek user ID
+            // Mengecek var request_role tidak kosong
+            if (stringUtils.isEmptyString(request_role)) {
+                return res.status(400).json('Data tidak valid');
+            }
+
+            // Cek user ID terdaftar di db
             let user = await knex('users').where('id', '=', uid).first();
             if (!user) {
                 return res.status(400).json('ID User tidak valid');
             }
 
+            // Mengecek apakah ada req role lain yang masih aktif pada user tersebut
             let userRoleReqActive = await knex('user_role_requests')
                 .where('confirmater_id', 'IS', null)
                 .first();
@@ -273,14 +287,12 @@ router.post(
 
             // Req Jadi Warga
             if (request_role == 3) {
-                if (
-                    stringUtils.isEmptyString(request_code) ||
-                    stringUtils.isEmptyString(request_role)
-                ) {
+                // Mengecek request_code tidak kosong
+                if (stringUtils.isEmptyString(request_code)) {
                     return res.status(400).json('Data tidak valid');
                 }
 
-                // Cek Kode Wilayah Valid
+                // Cek request_code valid dengan suatu wilayah
                 let wilayahTujuan = await knex('areas')
                     .where('area_code', '=', request_code)
                     .first();
@@ -288,8 +300,10 @@ router.post(
                     return res.status(400).json('Kode Wilayah tidak valid');
                 }
 
+                // Yang dapat mengkonfirmasi pasti hanya Ketua RT (role : 7)
                 let confirmater_role_id = 7;
                 let area_id = wilayahTujuan.id;
+                // Insert ke tabel user role requests
                 let newID = await knex('user_role_requests').insert({
                     requester_id: uid,
                     confirmater_role_id: confirmater_role_id,
@@ -298,6 +312,8 @@ router.post(
                     request_role: request_role,
                     created_at: moment().toDate(),
                 });
+
+                // Mengambil dan mengembalikan data terbaru yang baru saja di insert
                 let newReq = await knex('user_role_requests')
                     .where('id', '=', newID)
                     .first();
@@ -309,12 +325,12 @@ router.post(
                 request_role == 5 ||
                 request_role == 6
             ) {
-                if (
-                    stringUtils.isEmptyString(request_code) ||
-                    stringUtils.isEmptyString(request_role)
-                ) {
+                // Mengecek request_code tidak kosong
+                if (stringUtils.isEmptyString(request_code)) {
                     return res.status(400).json('Data tidak valid');
                 }
+
+                // Cek request_code valid dengan suatu wilayah
 
                 let wilayah = await knex('areas')
                     .where('id', '=', user.area_id)
@@ -323,6 +339,7 @@ router.post(
                     return res.status(400).json('Kode Wilayah tidak valid');
                 }
 
+                // Mengecek role yang dipilih serta kode nya match
                 if (
                     (request_role == 4 &&
                         request_code != wilayah.bendara_code) ||
@@ -334,6 +351,7 @@ router.post(
                     return res.status(400).json('Kode tidak valid');
                 }
 
+                // Insert ke tabel user role requests
                 await knex('user_role_requests').insert({
                     requester_id: uid,
                     confirmater_role_id: wilayah.ketua_id,
@@ -342,6 +360,85 @@ router.post(
                     request_role: request_role,
                     created_at: moment().toDate(),
                 });
+                return res.status(200).json('Berhasil Requests');
+            }
+            // Req jadi Ketua RT
+            else if (request_role == 7) {
+                // Mengecek data tidak kosong
+                let {
+                    rt_num,
+                    rw_num,
+                    urban_village_id,
+                    sub_district_id,
+                    namaLengkap,
+                    address,
+                } = req.body;
+                if (
+                    stringUtils.isEmptyString(namaLengkap) ||
+                    stringUtils.isEmptyString(address) ||
+                    stringUtils.isEmptyString(rt_num) ||
+                    stringUtils.isEmptyString(rw_num) ||
+                    stringUtils.isEmptyString(sub_district_id) ||
+                    stringUtils.isEmptyString(urban_village_id)
+                ) {
+                    return res.status(400).json('Data tidak valid');
+                }
+
+                // Mengecek wilayah tersebut sudah ada atau belum (RTnum RWnum Kec Kel)
+                let area = await knex('areas')
+                    .where('rt_num', '=', rt_num)
+                    .andWhere('rw_num', '=', rw_num)
+                    .andWhere('sub_district_id', '=', sub_district_id)
+                    .andWhere('urban_village_id', '=', urban_village_id)
+                    .first();
+                if (area) {
+                    return res.status(400).json('Wilayah sudah terdaftar');
+                }
+
+                // Insert
+                let idRoleRequest = await knex('user_role_requests').insert({
+                    requester_id: uid,
+                    confirmater_role_id: 1,
+                    request_role: request_role,
+                    ktp_img: req.files.ktp[0].filename,
+                    selfie_ktp_img: req.files.ktpSelfie[0].filename,
+                    file_lampiran: req.files.fileLampiran[0].filename,
+                    rt_num: rt_num,
+                    rw_num: rw_num,
+                    sub_district_id: sub_district_id,
+                    urban_village_id: urban_village_id,
+                    created_at: moment().toDate(),
+                });
+
+                idRoleRequest = idRoleRequest[0];
+
+                let filePath = path.join(
+                    __dirname,
+                    '..',
+                    '..',
+                    '..',
+                    'public',
+                    'uploads',
+                    'file_lampiran',
+                    `${idRoleRequest}`
+                );
+                if (!fs.existsSync(filePath)) {
+                    fs.mkdirSync(filePath, { recursive: true });
+                }
+
+                // pindahin file ktp
+                fs.moveSync(req.files.ktp[0].path, path.join(filePath, req.files.ktp[0].filename));
+                fs.moveSync(req.files.ktpSelfie[0].path, path.join(filePath, req.files.ktpSelfie[0].filename));
+                fs.moveSync(req.files.fileLampiran[0].path, path.join(filePath, req.files.fileLampiran[0].filename));
+
+
+                await knex('users')
+                    .update({
+                        full_name: namaLengkap,
+                        address: address,
+                    })
+                    .where('id', '=', uid);
+
                 return res.status(200).json('Berhasil Requests');
             }
 
@@ -380,6 +477,7 @@ router.patch('/updateUserRoleRequest', isAuthenticated, async (req, res) => {
             return res.status(400).json('Data tidak valid');
         }
 
+        // cek privillage
         if (
             userRoleRequest.confirmater_role_id != byuid.user_role &&
             userRoleRequest.requester_id != byuid.id
@@ -388,11 +486,6 @@ router.patch('/updateUserRoleRequest', isAuthenticated, async (req, res) => {
         }
 
         if (eval(isAccepted)) {
-            console.log('MASOKKKKKK');
-            let wilayah = await knex('areas')
-                .where('area_code', '=', userRoleRequest.area_id)
-                .first();
-
             await knex('user_role_requests')
                 .update({
                     confirmater_id: byuid.id,
@@ -400,7 +493,12 @@ router.patch('/updateUserRoleRequest', isAuthenticated, async (req, res) => {
                 })
                 .where('id', '=', user_role_requests_id);
 
+            // Kalau jadi warga maka ubah data user nya agar menjadi warga
             if (userRoleRequest.request_role == 3) {
+                const wilayah = await knex('areas')
+                    .where('area_code', '=', userRoleRequest.area_id)
+                    .first();
+
                 await knex('users')
                     .update({
                         user_role: userRoleRequest.request_role,
@@ -421,6 +519,90 @@ router.patch('/updateUserRoleRequest', isAuthenticated, async (req, res) => {
                         user_role: userRoleRequest.request_role,
                     })
                     .where('id', '=', userRoleRequest.requester_id);
+            } else if (userRoleRequest.request_role == 7) {
+                // Mengecek kode tidak kembar
+                let areaCode,
+                    wakilCode,
+                    bendaharaCode,
+                    sekretarisCode,
+                    isKembarAreaCode,
+                    isKembarBendaharaCode,
+                    isKembarSekretarisCode,
+                    isKembarWakilCode;
+                do {
+                    areaCode = randomVarchar(10);
+                    isKembarAreaCode = await knex('areas')
+                        .where('area_code', '=', areaCode)
+                        .first();
+                } while (isKembarAreaCode);
+
+                do {
+                    wakilCode = randomVarchar(10);
+                    isKembarWakilCode = await knex('areas')
+                        .where('wakil_ketua_code', '=', wakilCode)
+                        .first();
+                } while (isKembarWakilCode);
+
+                do {
+                    sekretarisCode = randomVarchar(10);
+                    isKembarSekretarisCode = await knex('areas')
+                        .where('wakil_ketua_code', '=', sekretarisCode)
+                        .first();
+                } while (isKembarSekretarisCode);
+
+                do {
+                    bendaharaCode = randomVarchar(10);
+                    isKembarBendaharaCode = await knex('areas')
+                        .where('wakil_ketua_code', '=', bendaharaCode)
+                        .first();
+                } while (isKembarBendaharaCode);
+
+                // Menginsert area baru sesuai req ketua
+                await knex('areas').insert({
+                    area_code: areaCode,
+                    rt_num: userRoleRequest.rt_num,
+                    rw_num: userRoleRequest.rw_num,
+                    sub_district_id: userRoleRequest.sub_district_id,
+                    urban_village_id: userRoleRequest.urban_village_id,
+                    has_lottery_club: 0,
+                    ketua_id: userRoleRequest.requester_id,
+                    wakil_ketua_code: wakilCode,
+                    sekretaris_code: sekretarisCode,
+                    bendara_code: bendaharaCode,
+                    created_at: moment().toDate(),
+                });
+
+                // Mengupdate data user dengan area tersebut
+                let areaBaru = await knex('areas')
+                    .where('area_code', '=', areaCode)
+                    .first();
+
+                await knex('users')
+                    .update({
+                        user_role: userRoleRequest.request_role,
+                        area_id: areaBaru.id,
+                        rt_num: areaBaru.rt_num,
+                        rw_num: areaBaru.rw_num,
+                        sub_district_id: areaBaru.sub_district_id,
+                        urban_village_id: areaBaru.urban_village_id,
+                    })
+                    .where('id', '=', userRoleRequest.requester_id);
+
+                // Menolak semua req menjadi ketua RT di wilayah tersebut
+                await knex('user_role_requests')
+                    .update({
+                        confirmater_id: -99,
+                        rejected_at: moment().toDate(),
+                    })
+                    .where('rt_num', '=', areaBaru.rt_num)
+                    .andWhere('rw_num', '=', areaBaru.rw_num)
+                    .andWhere('sub_district_id', '=', areaBaru.sub_district_id)
+                    .andWhere(
+                        'urban_village_id',
+                        '=',
+                        areaBaru.urban_village_id
+                    )
+                    .andWhere('request_role', '=', 7);
             }
         } else {
             await knex('user_role_requests')
@@ -452,7 +634,6 @@ router.get('/:id', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-    console.log(req.body);
     return res.status(200).json('OK');
 });
 
