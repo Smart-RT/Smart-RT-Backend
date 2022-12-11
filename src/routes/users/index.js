@@ -86,9 +86,31 @@ router.post('/login', async (req, res) => {
             .update({ refresh_token: refreshToken })
             .where('id', '=', user.id);
 
+        // ambil user role request.
         let userRoleReq = await knex('user_role_requests')
             .where('requester_id', '=', user.id)
             .orderBy('id', 'desc');
+
+        for (let idx = 0; idx < userRoleReq.length; idx++) {
+            if (userRoleReq[idx].request_role == 7) {
+                // Ambil data urban village dari userRoleReq.
+                let urbanVillage = await knex('urban_villages')
+                    .where('id', '=', userRoleReq[idx].urban_village_id)
+                    .first();
+
+                // Ambil data kecamatan (?) dari urbanVillage
+                let subDistrict = await knex('sub_districts')
+                    .where('id', '=', urbanVillage.kecamatan_id)
+                    .first();
+
+                userRoleReq[idx].sub_district_id = subDistrict;
+                userRoleReq[idx].urban_village_id = urbanVillage;
+                userRoleReq[idx].urban_village_id.kecamatan = {
+                    id: urbanVillage.kecamatan_id,
+                };
+            }
+        }
+
         payload.user_role_requests = userRoleReq;
         return res.status(200).json({
             user: payload,
@@ -109,7 +131,7 @@ router.post('/verifyUID/:uid', async (req, res) => {
     let userFirebase = await firebaseAuth.getUser(uid);
     if (!userFirebase.phoneNumber)
         return res.status(400).json('UID tidak valid');
-    
+
     return res.status(200).json('OK');
 });
 // -- End UID FIREBASE
@@ -145,7 +167,7 @@ router.patch(
 router.patch('/updateProfile/:uid', isAuthenticated, async (req, res) => {
     let { uid } = req.params;
     let { full_name, gender, born_date, address } = req.body;
-    
+
     try {
         // Cek token dengan user id di URL sama
         if (req.authenticatedUser.id != uid) {
@@ -264,7 +286,7 @@ router.post(
     async (req, res) => {
         let uid = req.authenticatedUser.id;
         let { request_role, request_code } = req.body;
-        
+
         try {
             // Mengecek var request_role tidak kosong
             if (stringUtils.isEmptyString(request_role)) {
@@ -427,10 +449,18 @@ router.post(
                 }
 
                 // pindahin file ktp
-                fs.moveSync(req.files.ktp[0].path, path.join(filePath, req.files.ktp[0].filename));
-                fs.moveSync(req.files.ktpSelfie[0].path, path.join(filePath, req.files.ktpSelfie[0].filename));
-                fs.moveSync(req.files.fileLampiran[0].path, path.join(filePath, req.files.fileLampiran[0].filename));
-
+                fs.moveSync(
+                    req.files.ktp[0].path,
+                    path.join(filePath, req.files.ktp[0].filename)
+                );
+                fs.moveSync(
+                    req.files.ktpSelfie[0].path,
+                    path.join(filePath, req.files.ktpSelfie[0].filename)
+                );
+                fs.moveSync(
+                    req.files.fileLampiran[0].path,
+                    path.join(filePath, req.files.fileLampiran[0].filename)
+                );
 
                 await knex('users')
                     .update({
@@ -439,7 +469,27 @@ router.post(
                     })
                     .where('id', '=', uid);
 
-                return res.status(200).json('Berhasil Requests');
+                let userRoleReqAfterInsert = await knex('user_role_requests')
+                    .where('id', '=', idRoleRequest)
+                    .first();
+
+                // Ambil data urban village dari userRoleReq.
+                let urbanVillage = await knex('urban_villages')
+                    .where('id', '=', userRoleReqAfterInsert.urban_village_id)
+                    .first();
+
+                // Ambil data kecamatan (?) dari urbanVillage
+                let subDistrict = await knex('sub_districts')
+                    .where('id', '=', urbanVillage.kecamatan_id)
+                    .first();
+
+                userRoleReqAfterInsert.sub_district_id = subDistrict;
+                userRoleReqAfterInsert.urban_village_id = urbanVillage;
+                userRoleReqAfterInsert.urban_village_id.kecamatan = {
+                    id: urbanVillage.kecamatan_id,
+                };
+
+                return res.status(200).json(userRoleReqAfterInsert);
             }
 
             return res.status(400).json('Error');
@@ -612,9 +662,29 @@ router.patch('/updateUserRoleRequest', isAuthenticated, async (req, res) => {
                 })
                 .where('id', '=', user_role_requests_id);
         }
+
         let userRoleReqAfterUpdate = await knex('user_role_requests')
             .where('id', '=', user_role_requests_id)
             .first();
+
+        if (userRoleRequest.request_role == 7) {
+            // Ambil data urban village dari userRoleReq.
+            let urbanVillage = await knex('urban_villages')
+                .where('id', '=', userRoleReqAfterUpdate.urban_village_id)
+                .first();
+
+            // Ambil data kecamatan (?) dari urbanVillage
+            let subDistrict = await knex('sub_districts')
+                .where('id', '=', urbanVillage.kecamatan_id)
+                .first();
+
+            userRoleReqAfterUpdate.sub_district_id = subDistrict;
+            userRoleReqAfterUpdate.urban_village_id = urbanVillage;
+            userRoleReqAfterUpdate.urban_village_id.kecamatan = {
+                id: urbanVillage.kecamatan_id,
+            };
+        }
+
         return res.status(200).json(userRoleReqAfterUpdate);
     } catch (error) {
         console.error(error);
