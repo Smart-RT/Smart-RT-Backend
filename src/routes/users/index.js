@@ -614,7 +614,7 @@ router.patch('/updateUserRoleRequest', isAuthenticated, async (req, res) => {
                     rw_num: userRoleRequest.rw_num,
                     sub_district_id: userRoleRequest.sub_district_id,
                     urban_village_id: userRoleRequest.urban_village_id,
-                    has_lottery_club: 0,
+                    is_lottery_club_period_active: 0,
                     ketua_id: userRoleRequest.requester_id,
                     wakil_ketua_code: wakilCode,
                     sekretaris_code: sekretarisCode,
