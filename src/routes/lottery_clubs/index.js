@@ -684,10 +684,10 @@ router.patch('/periode/pertemuan/absences', isAuthenticated, async (req, res) =>
         return res.status(500).json('ERROR!');
     }
 });
-// === END UPDATE ABSENCES
+// === END
 
 // === UPDATE BILLS
-// === END UPDATE BILLLS
+// === END
 
 // === LOTRE ACAK PEMENANG - UPDATE LOTTERY CLUB PERIOD DETAILS
 /** Langkah :
@@ -794,36 +794,36 @@ router.patch('/periode/pertemuan/start', isAuthenticated, async (req, res) => {
         // UPDATE LOTTERY_CLUB_PERIOD_DETAILS
         if (ctrWinnerNeeded == 1) {
             await knex('lottery_club_period_details')
-            .update({ 
-                winner_1_id: idRandomP1, 
-                updated_at: moment().toDate(), 
-                updated_by: user.id 
-            }).where('id', '=', dataPeriod.id);
-        }else{
+                .update({
+                    winner_1_id: idRandomP1,
+                    updated_at: moment().toDate(),
+                    updated_by: user.id
+                }).where('id', '=', dataPeriod.id);
+        } else {
             await knex('lottery_club_period_details')
-            .update({ 
-                winner_1_id: idRandomP1, 
-                winner_2_id: idRandomP2, 
-                updated_at: moment().toDate(), 
-                updated_by: user.id 
-            }).where('id', '=', dataPeriod.id);
+                .update({
+                    winner_1_id: idRandomP1,
+                    winner_2_id: idRandomP2,
+                    updated_at: moment().toDate(),
+                    updated_by: user.id
+                }).where('id', '=', dataPeriod.id);
         }
 
         // Update LOTTERY_CLUB_PERIOD_MEMBERS
         if (ctrWinnerNeeded == 1) {
             await knex('lottery_club_period_members')
-            .update({ 
-                already_be_a_winner: 1,
-                updated_at: moment().toDate(), 
-                updated_by: user.id 
-            }).where('id', '=', idRandomP1);
-        }else{
+                .update({
+                    already_be_a_winner: 1,
+                    updated_at: moment().toDate(),
+                    updated_by: user.id
+                }).where('id', '=', idRandomP1);
+        } else {
             await knex('lottery_club_period_members')
-            .update({ 
-                already_be_a_winner: 1,
-                updated_at: moment().toDate(), 
-                updated_by: user.id 
-            }).where('id', '=', idRandomP1).orWhere('id', '=', idRandomP2);
+                .update({
+                    already_be_a_winner: 1,
+                    updated_at: moment().toDate(),
+                    updated_by: user.id
+                }).where('id', '=', idRandomP1).orWhere('id', '=', idRandomP2);
         }
 
         // Insert Detail Period pertemuan pertama dgn stats unpublished (Nanti dapat di update)
@@ -852,8 +852,39 @@ router.patch('/periode/pertemuan/start', isAuthenticated, async (req, res) => {
         return res.status(500).json('ERROR!');
     }
 });
-// === END LOTRE ACAK PEMENANG
+// === END
 
+// === LIHAT SEMUA PERIODE (BESERTA DETAIL -> PERTEMUAN (DETAIL PERIODE), MEMBER PERIODE, ABSENSI, TAGIHAN)
+router.get('/periode', isAuthenticated, async (req, res) => {
+    let lotteryClubID = req.body;
+    try {
+        if (stringUtils.isEmptyString(lotteryClubID)) {
+            return res.status(400).json('Data tidak valid');
+        }
+
+        let listData = await knex({ periode: 'lottery_club_periods' })
+            .select({
+
+            }).join({
+                pertemuan: 'lottery_club_period_details'
+            }, 'periode.id', 'pertemuan.lottery_club_period_id'
+            ).join({
+                members: 'lottery_club_period_members'
+            }, 'periode.id', 'members.lottery_club_period_id'
+            ).join({
+                absensi: 'lottery_club_period_detail_absences'
+            }, 'pertemuan.id', 'absensi.lottery_club_period_detail_id'
+            ).join({
+                tagihan: 'lottery_club_period_detail_bills'
+            }, 'pertemuan.id', 'tagihan.lottery_club_period_detail_id');
+
+
+    } catch (error) {
+        onsole.error(error);
+        return res.status(500).json('ERROR!');
+    }
+});
+// === END 
 
 // === COBA COBA
 router.post('/cobacoba', async (req, res) => {
