@@ -112,6 +112,110 @@ router.post('/login', async (req, res) => {
         }
 
         payload.user_role_requests = userRoleReq;
+
+        if (user.user_role != 0 && user.user_role != 1 && user.user_role != 2) {
+            // Ambil data Area
+            let dataArea = await knex('areas')
+                .where('id', '=', user.area_id)
+                .first();
+
+            let dataKetuaRT = await knex('users')
+                .where('id', '=', dataArea.ketua_id)
+                .first();
+            delete dataKetuaRT.rt_num;
+            delete dataKetuaRT.sub_district_id;
+            delete dataKetuaRT.urban_village_id;
+            delete dataKetuaRT.rw_num;
+            delete dataKetuaRT.born_at;
+            delete dataKetuaRT.born_date;
+            delete dataKetuaRT.religion;
+            delete dataKetuaRT.is_married;
+            delete dataKetuaRT.profession;
+            delete dataKetuaRT.password;
+            delete dataKetuaRT.is_lottery_club_member;
+            delete dataKetuaRT.task_rating;
+            delete dataKetuaRT.sign_img;
+            delete dataKetuaRT.total_serving_as_neighbourhood_head;
+            delete dataKetuaRT.refresh_token;
+            delete dataKetuaRT.created_at;
+            delete dataKetuaRT.created_by;
+            dataArea.ketua_id = dataKetuaRT;
+
+            if (dataArea.wakil_ketua_id) {
+                let dataWakilKetuaRT = await knex('users')
+                    .where('id', '=', dataArea.wakil_ketua_id)
+                    .first();
+                delete dataWakilKetuaRT.rt_num;
+                delete dataWakilKetuaRT.sub_district_id;
+                delete dataWakilKetuaRT.urban_village_id;
+                delete dataWakilKetuaRT.rw_num;
+                delete dataWakilKetuaRT.born_at;
+                delete dataWakilKetuaRT.born_date;
+                delete dataWakilKetuaRT.religion;
+                delete dataWakilKetuaRT.is_married;
+                delete dataWakilKetuaRT.profession;
+                delete dataWakilKetuaRT.password;
+                delete dataWakilKetuaRT.is_lottery_club_member;
+                delete dataWakilKetuaRT.task_rating;
+                delete dataWakilKetuaRT.sign_img;
+                delete dataWakilKetuaRT.total_serving_as_neighbourhood_head;
+                delete dataWakilKetuaRT.refresh_token;
+                delete dataWakilKetuaRT.created_at;
+                delete dataWakilKetuaRT.created_by;
+                dataArea.wakil_ketua_id = dataWakilKetuaRT;
+            }
+            if (dataArea.sekretaris_id) {
+                let dataSekretaris = await knex('users')
+                    .where('id', '=', dataArea.sekretaris_id)
+                    .first();
+                delete dataSekretaris.rt_num;
+                delete dataSekretaris.sub_district_id;
+                delete dataSekretaris.urban_village_id;
+                delete dataSekretaris.rw_num;
+                delete dataSekretaris.born_at;
+                delete dataSekretaris.born_date;
+                delete dataSekretaris.religion;
+                delete dataSekretaris.is_married;
+                delete dataSekretaris.profession;
+                delete dataSekretaris.password;
+                delete dataSekretaris.is_lottery_club_member;
+                delete dataSekretaris.task_rating;
+                delete dataSekretaris.sign_img;
+                delete dataSekretaris.total_serving_as_neighbourhood_head;
+                delete dataSekretaris.refresh_token;
+                delete dataSekretaris.created_at;
+                delete dataSekretaris.created_by;
+                dataArea.sekretaris_id = dataSekretaris;
+            }
+            if (dataArea.bendahara_id) {
+                let dataBendahara = await knex('users')
+                    .where('id', '=', dataArea.bendahara_id)
+                    .first();
+                delete dataBendahara.rt_num;
+                delete dataBendahara.sub_district_id;
+                delete dataBendahara.urban_village_id;
+                delete dataBendahara.rw_num;
+                delete dataBendahara.born_at;
+                delete dataBendahara.born_date;
+                delete dataBendahara.religion;
+                delete dataBendahara.is_married;
+                delete dataBendahara.profession;
+                delete dataBendahara.password;
+                delete dataBendahara.is_lottery_club_member;
+                delete dataBendahara.task_rating;
+                delete dataBendahara.sign_img;
+                delete dataBendahara.total_serving_as_neighbourhood_head;
+                delete dataBendahara.refresh_token;
+                delete dataBendahara.created_at;
+                delete dataBendahara.created_by;
+                dataArea.bendahara_id = dataBendahara;
+            }
+            payload.area = dataArea;
+        }
+
+
+
+
         return res.status(200).json({
             user: payload,
             token: jwtToken,
