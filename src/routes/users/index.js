@@ -119,6 +119,13 @@ router.post('/login', async (req, res) => {
                 .where('id', '=', user.area_id)
                 .first();
 
+            if (dataArea.lottery_club_id != null) {
+                let dataLotteryClub = await knex('lottery_clubs')
+                    .where('id', '=', dataArea.lottery_club_id)
+                    .first();
+                dataArea.lottery_club_id = dataLotteryClub;
+            }
+            
             let dataKetuaRT = await knex('users')
                 .where('id', '=', dataArea.ketua_id)
                 .first();
