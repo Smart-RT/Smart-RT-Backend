@@ -180,7 +180,7 @@ router.post('/periode', isAuthenticated, async (req, res) => {
         for (let idx = 0; idx < members.length; idx++) {
             const userMemberID = members[idx];
             if (stringUtils.isEmptyString(userMemberID)) {
-                return res.status(400).json('Data tidak valid');
+                return res.status(400).json('Data tidak valid 1');
             }
             let checkMembers = await knex('users')
                 .where('id', '=', userMemberID)
@@ -203,9 +203,6 @@ router.post('/periode', isAuthenticated, async (req, res) => {
             stringUtils.isEmptyString(total_meets) ||
             parseInt(bill_amount) < 5000 ||
             parseInt(winner_bill_amount) < 5000 ||
-            parseInt(winner_bill_amount) >
-            parseInt(bill_amount) * members.length ||
-            parseInt(year_limit) < 1 ||
             members.length < 1
         ) {
             return res.status(400).json('Data tidak valid');
@@ -269,6 +266,10 @@ router.post('/periode', isAuthenticated, async (req, res) => {
                 created_at: moment().toDate(),
                 created_by: user.id,
             });
+
+            await knex('users').update({
+                is_lottery_club_member: 1
+            }).where('id', '=', userMemberID);
         }
 
         // Insert Detail Period pertemuan pertama dgn stats unpublished (Nanti dapat di update)
@@ -284,12 +285,13 @@ router.post('/periode', isAuthenticated, async (req, res) => {
             created_by: user.id,
         });
 
-        // Mengambil dan mengembalikan data terbaru yang baru saja di insert
-        let newLotteryClubPeriodData = await knex('lottery_club_periods')
-            .where('id', '=', newLotteryClubPeriodID)
-            .first();
+        // // Mengambil dan mengembalikan data terbaru yang baru saja di insert
+        // let newLotteryClubPeriodData = await knex('lottery_club_periods')
+        //     .where('id', '=', newLotteryClubPeriodID)
+        //     .first();
+        // return res.status(200).json(newLotteryClubPeriodData);
 
-        return res.status(200).json(newLotteryClubPeriodData);
+        return res.status(200).json("SUKSES !");
     } catch (error) {
         console.error(error);
         return res.status(500).json('ERROR!');
@@ -499,21 +501,19 @@ router.patch('/periode', isAuthenticated, async (req, res) => {
 router.patch('/periode/pertemuan', isAuthenticated, async (req, res) => {
     // Mengambil data user yang melakukan request
     let user = req.authenticatedUser;
-    let [
-        lottery_club_period_detail_ID,
+    let {
+        lottery_club_period_detail_id,
         meet_date,
         meet_at,
-        is_offline_meet,
         status
-    ] = req.body;
+ } = req.body;
 
     try {
         // Mengecek data dari req.body valid
         if (
-            stringUtils.isEmptyString(lottery_club_period_detail_ID) ||
+            stringUtils.isEmptyString(lottery_club_period_detail_id) ||
             stringUtils.isEmptyString(meet_date) ||
             stringUtils.isEmptyString(meet_at) ||
-            stringUtils.isEmptyString(is_offline_meet) ||
             stringUtils.isEmptyString(status)
         ) {
             return res.status(400).json('Data tidak valid');
@@ -521,7 +521,7 @@ router.patch('/periode/pertemuan', isAuthenticated, async (req, res) => {
 
         // Mengambil data Lottery Club Period Detail yang ingin di update
         let dataPertemuan = await knex('lottery_club_period_details')
-            .where('id', '=', lottery_club_period_detail_ID)
+            .where('id', '=', lottery_club_period_detail_id)
             .first();
 
         if (!dataPertemuan) {
@@ -554,11 +554,10 @@ router.patch('/periode/pertemuan', isAuthenticated, async (req, res) => {
             meet_date: moment
                 .tz(meet_date, 'YYYY-MM-DD HH:mm', 'Asia/Jakarta')
                 .format('YYYY-MM-DD HH:mm'),
-            is_offline_meet: is_offline_meet,
             status: status,
             updated_at: moment().toDate(),
             updated_by: user.id,
-        }).where('id', '=', lottery_club_period_detail_ID);
+        }).where('id', '=', lottery_club_period_detail_id);
 
         // Mengambil listPertemuan Periode tersebut
         let listPertemuan = await knex('lottery_club_period_details')
@@ -567,6 +566,10 @@ router.patch('/periode/pertemuan', isAuthenticated, async (req, res) => {
         // Jika listPertemuan == 1 maka update lottery club period
         if (listPertemuan.length == 1) {
             await knex('lottery_club_periods').update({
+                default_meet_location: meet_at,
+                default_meet_date: moment
+                .tz(meet_date, 'MM-DD HH:mm', 'Asia/Jakarta')
+                .format('MM-DD HH:mm'),
                 started_at: moment
                     .tz(meet_date, 'YYYY-MM-DD HH:mm', 'Asia/Jakarta')
                     .format('YYYY-MM-DD HH:mm'),
@@ -577,15 +580,15 @@ router.patch('/periode/pertemuan', isAuthenticated, async (req, res) => {
 
         // Insert BILLS and ABSENCES jika data status yang dikirim published
         if (status == "Published") {
-            let listAnggotaPeriode = await knex('lottery_ckub_period_members')
-                .where('lottery_club_period_id', '=', dataPertemuan.lottery_club_period_detail_ID);
+            let listAnggotaPeriode = await knex('lottery_club_period_members')
+                .where('lottery_club_period_id', '=', dataLotteryClubPeriod.id);
 
             for (let idx = 0; idx < listAnggotaPeriode.length; idx++) {
                 await knex('lottery_club_period_detail_absences')
                     .insert({
                         user_id: user.id,
-                        lotetry_club_period_member_id: listAnggotaPeriode[0].id,
-                        lottery_club_period_id: listAnggotaPeriode[0].lottery_club_period_detail_id,
+                        lottery_club_period_member_id: listAnggotaPeriode[0].id,
+                        lottery_club_period_detail_id: listAnggotaPeriode[0].lottery_club_period_detail_id,
                         is_present: 0,
                         created_by: user.id,
                         created_at: moment().toDate()
@@ -594,8 +597,8 @@ router.patch('/periode/pertemuan', isAuthenticated, async (req, res) => {
                 await knex('lottery_club_period_detail_bills')
                     .insert({
                         user_id: user.id,
-                        lotetry_club_period_member_id: listAnggotaPeriode[0].id,
-                        lottery_club_period_id: listAnggotaPeriode[0].lottery_club_period_detail_id,
+                        lottery_club_period_member_id: listAnggotaPeriode[0].id,
+                        lottery_club_period_detail_id: listAnggotaPeriode[0].lottery_club_period_detail_id,
                         bill_amount: dataLotteryClubPeriod.bill_amount,
                         status: 0,
                         created_by: user.id,
@@ -605,11 +608,11 @@ router.patch('/periode/pertemuan', isAuthenticated, async (req, res) => {
 
         }
 
-        let updatedLotteryClubPeriodData = await knex('lottery_club_periods')
-            .where('id', '=', dataPertemuan.lottery_club_period_id)
-            .first();
+        // let updatedLotteryClubPeriodData = await knex('lottery_club_periods')
+        //     .where('id', '=', dataPertemuan.lottery_club_period_id)
+        //     .first();
 
-        return res.status(200).json(updatedLotteryClubPeriodData);
+        return res.status(200).json("BERHASIL !");
 
     } catch (error) {
         console.error(error);
@@ -885,6 +888,91 @@ router.get('/periode', isAuthenticated, async (req, res) => {
     }
 });
 // === END 
+
+
+// === GET LAST PERIODE ID
+router.get('/getLastPeriodeID/:idArisan', async (req, res) => {
+    let { idArisan } = req.params;
+    try {
+        let dataArisan = await knex('lottery_clubs')
+            .where('id', '=', idArisan).first();
+
+        if (!dataArisan) {
+            return res.status(400).json('ID Periode tidak valid');
+        }
+
+        let idPeriodeArisanTerakhir = await knex('lottery_club_periods').select('id')
+            .where('lottery_club_id', '=', idArisan).orderBy('id', 'desc').first();
+
+        if (!idPeriodeArisanTerakhir) {
+            return res.status(200).json('Belum ada Periode Arisan');
+        }
+
+        return res.status(200).json(idPeriodeArisanTerakhir['id']);
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json('ERROR!');
+    }
+});
+// === END
+
+// === CHECK ARISAN PERTEMUAN SUDAH BERJALAN / DIPUBLISH ATAU BELUM
+router.get('/checkPertemuanPeriodeBerjalan/:idPeriode', async (req, res) => {
+    let { idPeriode } = req.params;
+    try {
+        let dataPeriode = await knex('lottery_club_periods')
+            .where('id', '=', idPeriode).first();
+
+        if (!dataPeriode) {
+            return res.status(400).json('ID Periode tidak valid');
+        }
+
+        let listPertemuan = await knex('lottery_club_period_details')
+            .where('lottery_club_period_id', '=', idPeriode).andWhere('status', '!=', 'Unpublished');
+
+        if (listPertemuan) {
+            return res.status(200).json("true");
+        }
+        return res.status(200).json("false");
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json('ERROR!');
+    }
+});
+// === END
+
+// === GET DATA PERTEMUAN BELUM DI PUBLISH
+router.get('/getPeriodDetailUnpublish/:idPeriode', async (req, res) => {
+    let { idPeriode } = req.params;
+    try {
+        let dataPeriode = await knex('lottery_club_periods')
+            .where('id', '=', idPeriode).first();
+
+        if (!dataPeriode) {
+            return res.status(400).json('ID Periode tidak valid');
+        }
+
+        let dataPeriodeDetails = await knex('lottery_club_period_details')
+            .where('lottery_club_period_id', '=', idPeriode)
+            .andWhere('status', '=', 'Unpublished')
+            .first();
+
+        if (!dataPeriodeDetails) {
+            return res.status(400).json('Belum ada Periode Arisan');
+        }
+
+        dataPeriode = await knex('lottery_club_periods')
+            .where('id', '=', dataPeriodeDetails.lottery_club_period_id)
+            .first();
+
+        dataPeriodeDetails.lottery_club_period_id = dataPeriode;
+        return res.status(200).json(dataPeriodeDetails);
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json('ERROR!');
+    }
+});
+// === END
 
 // === COBA COBA
 router.post('/cobacoba', async (req, res) => {

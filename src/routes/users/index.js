@@ -804,6 +804,40 @@ router.patch('/updateUserRoleRequest', isAuthenticated, async (req, res) => {
 });
 // -- END UPDATE USER ROLE (Konfirmasi Req User Role)
 
+// === LIST USER WILAYAH
+router.post('/listUserWilayah', isAuthenticated, async (req, res) => {
+    let user = req.authenticatedUser;
+    try {
+        if (user.area_id == '' || user.area_id == null) {
+            return res.status(400).json('Data tidak valid');
+        }
+
+        let listUserWilayah = await knex('users')
+            .where('area_id', '=', user.area_id);
+
+        if (listUserWilayah) {
+            for (let idx = 0; idx < listUserWilayah.length; idx++) {
+                delete listUserWilayah[idx].rt_num;
+                delete listUserWilayah[idx].sub_district_id;
+                delete listUserWilayah[idx].urban_village_id;
+                delete listUserWilayah[idx].rw_num;
+                delete listUserWilayah[idx].password;
+                delete listUserWilayah[idx].sign_img;
+                delete listUserWilayah[idx].refresh_token;
+                delete listUserWilayah[idx].created_at;
+                delete listUserWilayah[idx].created_by;
+            }
+        }
+        
+        return res.status(200).json(listUserWilayah);
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json('ERROR');
+    }
+});
+// === END
+
+
 router.get('/', async (req, res) => {
     let users = await knex('users');
     return res.status(200).json(users);
