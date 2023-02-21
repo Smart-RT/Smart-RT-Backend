@@ -6,6 +6,7 @@ const { isAuthenticated } = require('../../middleware/auth');
 const { stringUtils, tokenUtils } = require('../../utils');
 const { read } = require('fs-extra');
 const { default: axios } = require('axios');
+const { randomVarchar } = require('../../utils/strings');
 
 /** CATATAN dan BATASAN ARISAN
  *  # 1 Wilayah hanya dapat memiliki 1 arisan dan periode arisan yang aktif
@@ -673,28 +674,29 @@ router.patch('/periode/pertemuan/absences', isAuthenticated, async (req, res) =>
                     is_present: 1,
                     present_date: moment().toDate()
                 }).where('id', '=', listDataAbsensi[idx].id);
-                await knex('lottery_club_period_details').update({
-                    total_attendance: dataPeriodDetail.total_attendance + 1
-                }).where('id', '=', idPertemuan);
+
             } else {
                 await knex('lottery_club_period_detail_absences').update({
                     is_present: 0,
                     present_date: null
                 }).where('id', '=', listDataAbsensi[idx].id);
-                await knex('lottery_club_period_details').update({
-                    total_attendance: dataPeriodDetail.total_attendance - 1
-                }).where('id', '=', idPertemuan);
+
             }
         }
+
+        let totalAttendance = await knex('lottery_club_period_detail_absences')
+            .where('lottery_club_period_detail_id', '=', idPertemuan).andWhere('is_present', '=', 1);
+
+        await knex('lottery_club_period_details').update({
+            total_attendance: totalAttendance.length
+        }).where('id', '=', idPertemuan);
+
         return res.status(200).json("BERHASIL SIMPAN !");
     } catch (error) {
         console.error(error);
         return res.status(500).json('ERROR!');
     }
 });
-// === END
-
-// === UPDATE BILLS
 // === END
 
 // === LOTRE ACAK PEMENANG - UPDATE LOTTERY CLUB PERIOD DETAILS
@@ -862,38 +864,6 @@ router.patch('/periode/pertemuan/start', isAuthenticated, async (req, res) => {
 });
 // === END
 
-// === LIHAT SEMUA PERIODE (BESERTA DETAIL -> PERTEMUAN (DETAIL PERIODE), MEMBER PERIODE, ABSENSI, TAGIHAN)
-router.get('/periode', isAuthenticated, async (req, res) => {
-    let lotteryClubID = req.body;
-    try {
-        if (stringUtils.isEmptyString(lotteryClubID)) {
-            return res.status(400).json('Data tidak valid');
-        }
-
-        let listData = await knex({ periode: 'lottery_club_periods' })
-            .select({
-
-            }).join({
-                pertemuan: 'lottery_club_period_details'
-            }, 'periode.id', 'pertemuan.lottery_club_period_id'
-            ).join({
-                members: 'lottery_club_period_members'
-            }, 'periode.id', 'members.lottery_club_period_id'
-            ).join({
-                absensi: 'lottery_club_period_detail_absences'
-            }, 'pertemuan.id', 'absensi.lottery_club_period_detail_id'
-            ).join({
-                tagihan: 'lottery_club_period_detail_bills'
-            }, 'pertemuan.id', 'tagihan.lottery_club_period_detail_id');
-
-
-    } catch (error) {
-        onsole.error(error);
-        return res.status(500).json('ERROR!');
-    }
-});
-// === END 
-
 // === GET LAST PERIODE ID
 router.get('/getLastPeriodeID/:idArisan', async (req, res) => {
     let { idArisan } = req.params;
@@ -920,7 +890,7 @@ router.get('/getLastPeriodeID/:idArisan', async (req, res) => {
 });
 // === END
 
-// === CHECK ARISAN PERTEMUAN SUDAH BERJALAN / DIPUBLISH ATAU BELUM
+// === GET BOOL IS ARISAN PERTEMUAN SUDAH BERJALAN / DIPUBLISH
 router.get('/checkPertemuanPeriodeBerjalan/:idPeriode', async (req, res) => {
     let { idPeriode } = req.params;
     try {
@@ -1019,8 +989,8 @@ router.get('/getPeriodDetail/:status/:idPeriode', async (req, res) => {
 });
 // === END
 
-// === GET STATUS PEMBAYARAN IURAN ARISANKU
-router.get('/getStatusPembayaran/:idPertemuan', isAuthenticated, async (req, res) => {
+// === GET DATA TAGIHAN IURAN ARISANKU
+router.get('/getDataTagihan/:idPertemuan', isAuthenticated, async (req, res) => {
     let user = req.authenticatedUser;
     let { idPertemuan } = req.params;
     try {
@@ -1031,13 +1001,62 @@ router.get('/getStatusPembayaran/:idPertemuan', isAuthenticated, async (req, res
             return res.status(400).json('ID Pertemuan tidak valid');
         }
 
-        let statusPembayaran = await knex('lottery_club_period_detail_bills')
-            .select('status')
+        let dataTagihan = await knex('lottery_club_period_detail_bills')
             .where('lottery_club_period_detail_id', '=', idPertemuan)
             .andWhere('user_id', '=', user.id)
             .first();
 
-        return res.status(200).json(statusPembayaran.status);
+        return res.status(200).json(dataTagihan);
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json('ERROR!');
+    }
+});
+// === END
+
+// === GET DATA TAGIHAN IURAN ARISAN WILAYAH 
+router.get('/getDataTagihanWilayah/:idPertemuan', async (req, res) => {
+    let { idPertemuan } = req.params;
+    try {
+        let dataPertemuan = await knex('lottery_club_period_details')
+            .where('id', '=', idPertemuan).first();
+
+        if (!dataPertemuan) {
+            return res.status(400).json('ID Pertemuan tidak valid');
+        }
+
+        let listDataTagihan = await knex('lottery_club_period_detail_bills')
+            .where('lottery_club_period_detail_id', '=', idPertemuan);
+
+
+        let dataTagihanBelumBayarCtr = await knex('lottery_club_period_detail_bills')
+            .count('user_id')
+            .where('lottery_club_period_detail_id', '=', idPertemuan)
+            .andWhere('status', '=', 0).first();
+
+        let dataTagihanBelumBayarTotal = await knex('lottery_club_period_detail_bills')
+            .sum('bill_amount')
+            .where('lottery_club_period_detail_id', '=', idPertemuan)
+            .andWhere('status', '=', 0).first();
+
+        let dataTagihanSudahBayarCtr = await knex('lottery_club_period_detail_bills')
+            .count('user_id')
+            .where('lottery_club_period_detail_id', '=', idPertemuan)
+            .andWhere('status', '=', 1).first();
+
+        let dataTagihanSudahBayarTotal = await knex('lottery_club_period_detail_bills')
+            .sum('bill_amount')
+            .where('lottery_club_period_detail_id', '=', idPertemuan)
+            .andWhere('status', '=', 1).first();
+
+        let dataFinal = {
+            "belumBayarCTR": dataTagihanBelumBayarCtr["count(`user_id`)"],
+            "belumBayarTotal": dataTagihanBelumBayarTotal["sum(`bill_amount`)"],
+            "sudahBayarCTR": dataTagihanSudahBayarCtr["count(`user_id`)"],
+            "sudahBayarTotal": dataTagihanSudahBayarTotal["sum(`bill_amount`)"],
+            "listTagihan": listDataTagihan,
+        };
+        return res.status(200).json(dataFinal);
     } catch (error) {
         console.error(error);
         return res.status(500).json('ERROR!');
@@ -1122,12 +1141,120 @@ router.get('/getListMemberArisan/:idPeriode', async (req, res) => {
 });
 // === END
 
+// === GET LIST PERTEMUAN ARISAN (REQ ID PERIODE)
+router.get('/getListPertemuanArisan/:idPeriode', async (req, res) => {
+    let { idPeriode } = req.params;
+    try {
+        let dataPeriode = await knex('lottery_club_periods')
+            .where('id', '=', idPeriode).first();
+
+        if (!dataPeriode) {
+            return res.status(400).json('ID Periode tidak valid');
+        }
+
+        let listPertemuan = await knex('lottery_club_period_details')
+            .where('lottery_club_period_id', '=', idPeriode);
+
+        for (let idx = 0; idx < listPertemuan.length; idx++) {
+            delete listPertemuan[idx].lottery_club_period_id;
+            if (listPertemuan[idx].winner_1_id != null) {
+                let dataUser = await knex('users').where('id', '=', listPertemuan[idx].winner_1_id);
+                listPertemuan[idx].winner_1_id = dataUser;
+            }
+            if (listPertemuan[idx].winner_2_id != null) {
+                let dataUser = await knex('users').where('id', '=', listPertemuan[idx].winner_2_id);
+                listPertemuan[idx].winner_2_id = dataUser;
+            }
+
+        }
+
+        return res.status(200).json(listPertemuan);
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json('ERROR!');
+    }
+});
+// === END
+
+// === PAYMENT
+router.post('/payment', async (req, res) => {
+    let { payment_type, bank, id_bill } = req.body;
+
+    try {
+        if (stringUtils.isEmptyString(payment_type)||stringUtils.isEmptyString(bank)||stringUtils.isEmptyString(id_bill)) {
+            return res.status(400).json('Data tidak valid');
+        }
+
+        let dataBills = await knex('lottery_club_period_detail_bills')
+            .where('id', '=', id_bill).first();
+
+        if (!dataBills) {
+            return res.status(400).json('ID Periode tidak valid');
+        }
+
+        if (payment_type != 'bank_transfer' && (bank != 'bca' || bank != 'bni' || bank != 'bri')) {
+            return res.status(400).json('Data tidak valid');
+        }
+
+        let data = {
+            payment_type: payment_type,
+            transaction_details: {
+                order_id: moment
+                    .tz(moment().toDate(), 'YYYYMMDDHHmmss', 'Asia/Jakarta')
+                    .format('YYYYMMDDHHmmss') + dataBills.id,
+                gross_amount: dataBills.bill_amount,
+            },
+            bank_transfer: {
+                bank: bank,
+            },
+        };
+
+        let base64Key =
+            'Basic ' +
+            Buffer.from(process.env.MIDTRANS_SERVERKEY + ':').toString('base64');
+
+        let response = await axios.post(
+            'https://api.sandbox.midtrans.com/v2/charge',
+            data,
+            {
+                headers: {
+                    Authorization: base64Key,
+                    Accept: '*/*',
+                    'Content-Type': 'application/json',
+                },
+            }
+        );
+
+        await knex('lottery_club_period_detail_bills').update({
+            'midtrans_order_id': response.data.order_id,
+            'midtrans_transaction_id': response.data.transaction_id,
+            'payment_type': response.data.payment_type,
+            'acquiring_bank': response.data.va_numbers[0].bank,
+            'va_num': response.data.va_numbers[0].va_number,
+            'midtrans_transaction_status': response.data.transaction_status,
+            'midtrans_created_at': response.data.transaction_time,
+            'midtrans_expired_at': response.data.expiry_time,
+        }).where('id', '=', id_bill);
+
+        let dataBillsUpdated = await knex('lottery_club_period_detail_bills')
+            .where('id', '=', id_bill).first();
+
+        console.log(response.data);
+        return res.status(200).json(dataBillsUpdated);
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json('ERROR!');
+    }
+
+
+});
+
 // === COBA COBA
 router.post('/cobacoba', async (req, res) => {
     let data = {
         payment_type: 'bank_transfer',
         transaction_details: {
-            order_id: 'arisan-jose-2',
+            order_id: 'OA00014',
             gross_amount: 10000,
         },
         bank_transfer: {
@@ -1148,8 +1275,18 @@ router.post('/cobacoba', async (req, res) => {
             },
         }
     );
-    console.log(response);
+    console.log('DATA');
+    console.log('================================');
+    console.log(response.data);
+    console.log('================================');
+    console.log(response.data.va_numbers[0].va_number);
+    console.log('================================');
+    console.log(response.data.reference_id);
+    console.log('================================');
+    console.log(response.data.transaction_id);
     return res.status(200).json('BERHASIL');
 });
+
+
 
 module.exports = router;
