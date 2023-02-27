@@ -1254,7 +1254,7 @@ router.post('/cobacoba', async (req, res) => {
     let data = {
         payment_type: 'bank_transfer',
         transaction_details: {
-            order_id: 'OA00014',
+            order_id: 'OA00014xxx2',
             gross_amount: 10000,
         },
         bank_transfer: {
@@ -1288,5 +1288,6 @@ router.post('/cobacoba', async (req, res) => {
 });
 
 
-
+//https://jsfiddle.net/5amr8cov/6/embedded/result,html/dark
+//https://docs.midtrans.com/docs/https-notification-webhooks
 module.exports = router;
