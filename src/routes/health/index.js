@@ -98,11 +98,49 @@ router.get('/userReported', isAuthenticated, async (req, res) => {
 });
 // === END
 
-// === GET LIST RIWAYAT SAKIT (ALL)
-router.get('/userReported/all', async (req, res) => {
+// === GET LIST RIWAYAT SAKIT
+router.get('/userReported/id/:idReported', async (req, res) => {
+    let { idReported } = req.params;
     try {
+        let dataReport = await knex('user_health_reports')
+            .where('id', '=', idReported).first();
+
+        let dataDiseaseGroup = await knex('disease_groups')
+            .where('id', '=', dataReport.disease_group_id)
+            .first();
+        dataReport.disease_group_id = dataDiseaseGroup;
+        let dataUser = await knex('users')
+            .where('id', '=', dataReport.reported_id_for)
+            .first();
+        dataReport.reported_data_user = dataUser;
+        dataUser = await knex('users')
+            .where('id', '=', dataReport.created_by)
+            .first();
+        dataReport.created_by_data_user = dataUser;
+        dataUser = await knex('users')
+            .where('id', '=', dataReport.confirmation_by)
+            .first();
+        dataReport.confirmation_by_data_user = dataUser;
+        
+        return res.status(200).json(dataReport);
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json('ERROR!');
+    }
+});
+// === END
+
+// === GET LIST RIWAYAT SAKIT (ALL)
+router.get('/userReported/all', isAuthenticated, async (req, res) => {
+    let user = req.authenticatedUser;
+    try {
+        let dataUser = await knex('users')
+            .where('id', '=', user.id)
+            .first();
+
         let listRiwayatSakit = await knex('user_health_reports')
-            .where('confirmation_status', '=', 1);
+            .where('confirmation_status', '=', 1)
+            .andWhere('area_reported_id', '=', dataUser.area_id);
 
         for (let idx = 0; idx < listRiwayatSakit.length; idx++) {
             let dataDiseaseGroup = await knex('disease_groups')
@@ -123,6 +161,125 @@ router.get('/userReported/all', async (req, res) => {
             listRiwayatSakit[idx].confirmation_by_data_user = dataUser;
         }
         return res.status(200).json(listRiwayatSakit);
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json('ERROR!');
+    }
+});
+// === END
+
+// === GET LIST LAPORAN SAKIT BUTUH KONFIRMASI (COUNT)
+router.get('/userReported/needConfirmation/count', isAuthenticated, async (req, res) => {
+    let user = req.authenticatedUser;
+    try {
+        let dataUser = await knex('users')
+            .where('id', '=', user.id)
+            .first();
+
+        let listRiwayatSakit = await knex('user_health_reports')
+            .where('confirmation_status', '=', -1)
+            .andWhere('area_reported_id', '=', dataUser.area_id)
+            .count('id').first();
+
+        return res.status(200).json(listRiwayatSakit["count(`id`)"]);
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json('ERROR!');
+    }
+});
+// === END
+
+// === GET LIST LAPORAN SAKIT DARI WARGA BERDASARKAN STATUS
+router.get('/userReported/all/status/:status', isAuthenticated, async (req, res) => {
+    let user = req.authenticatedUser;
+    let { status } = req.params;
+    try {
+        if (status != "telahDikonfirmasi" && status != "belumDikonfirmasi") {
+            return res.status(400).json('Data tidak valid');
+        }
+
+        let dataUser = await knex('users')
+            .where('id', '=', user.id)
+            .first();
+
+        let listRiwayatSakit;
+        if (status == "telahDikonfirmasi") {
+            listRiwayatSakit = await knex('user_health_reports')
+                .whereRaw('reported_id_for != created_by')
+                .andWhere('confirmation_status', '>', -1)
+                .andWhere('area_reported_id', '=', dataUser.area_id)
+        }else{
+             listRiwayatSakit = await knex('user_health_reports')
+                .where('confirmation_status', '=', -1)
+                .andWhere('area_reported_id', '=', dataUser.area_id);
+        }
+
+        for (let idx = 0; idx < listRiwayatSakit.length; idx++) {
+            let dataDiseaseGroup = await knex('disease_groups')
+                .where('id', '=', listRiwayatSakit[idx].disease_group_id)
+                .first();
+            listRiwayatSakit[idx].disease_group_id = dataDiseaseGroup;
+            let dataUser = await knex('users')
+                .where('id', '=', listRiwayatSakit[idx].reported_id_for)
+                .first();
+            listRiwayatSakit[idx].reported_data_user = dataUser;
+            dataUser = await knex('users')
+                .where('id', '=', listRiwayatSakit[idx].created_by)
+                .first();
+            listRiwayatSakit[idx].created_by_data_user = dataUser;
+            dataUser = await knex('users')
+                .where('id', '=', listRiwayatSakit[idx].confirmation_by)
+                .first();
+            listRiwayatSakit[idx].confirmation_by_data_user = dataUser;
+        }
+
+        return res.status(200).json(listRiwayatSakit);
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json('ERROR!');
+    }
+});
+// === END
+
+// === UPDATED USER_HEALT_REPORTS (KONFIRMASI)
+router.patch('/userReported/confirmationAction/:status', isAuthenticated, async (req, res) => {
+    let user = req.authenticatedUser;
+    let { status } = req.params;
+    let { idReport } = req.body;
+    try {
+        if (status != "terima" && status != "tolak") {
+            return res.status(400).json('Data tidak valid');
+        }
+
+        let dataUserHealthReport = await knex('user_health_reports')
+        .where('id', '=', idReport).first();
+    
+        if (!dataUserHealthReport) {
+            return res.status(400).json('Data tidak valid');
+        }
+        
+        let dataStatus = 1; 
+        let msg = "Berhasil Menolak Laporan!";
+        if (status == 'tolak') {
+            dataStatus = 0;
+            await knex('users').update({
+                'is_health': 1,
+            }).where('id', '=', dataUserHealthReport.reported_id_for);
+        }else{
+            msg = "Berhasil Menerima Laporan!";
+            await knex('users').update({
+                'is_health': 0,
+            }).where('id', '=', dataUserHealthReport.reported_id_for);
+        }
+
+        await knex('user_health_reports')
+            .update({
+                "confirmation_status": dataStatus,
+                "confirmation_by": user.id,
+                "confirmation_at": moment().toDate()
+            }).where('id', '=', idReport);
+
+        return res.status(200).json(msg);
     } catch (error) {
         console.error(error);
         return res.status(500).json('ERROR!');
@@ -160,6 +317,37 @@ router.patch('/userReported/sayaSehat', isAuthenticated, async (req, res) => {
         }).andWhere('user_health_report_id', '=', dataUserHealthReport.id);
 
         return res.status(200).json("Sekarang anda sehat! Jagalah kesehatan anda!");
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json('ERROR!');
+    }
+});
+// === END
+
+// === UPDATED health_task_helps (BERI RATING)
+router.patch('/userReported/rating', isAuthenticated, async (req, res) => {
+    let { idTaskHelp, rating, review } = req.body;
+    try {
+        if (stringUtils.isEmptyString(idTaskHelp)
+            || stringUtils.isEmptyString(rating)
+            || stringUtils.isEmptyString(review)) {
+            return res.status(400).json('Data tidak valid');
+        }
+        
+        let dataUserHealthReport = await knex('health_task_helps')
+            .where('id', '=', idTaskHelp)
+            .first();
+        
+        if (!dataUserHealthReport) {
+            return res.status(400).json('Data tidak valid');
+        }   
+
+        await knex('health_task_helps').update({
+            "rating": rating,
+            "review": review
+        }).where('id', '=', idTaskHelp);
+
+        return res.status(200).json("Berhasil Memberi Penilaian !");
     } catch (error) {
         console.error(error);
         return res.status(500).json('ERROR!');
@@ -341,5 +529,7 @@ router.patch('/healthTaskHelp', isAuthenticated, async (req, res) => {
     }
 });
 // === END
+
+
 
 module.exports = router;
