@@ -1248,6 +1248,142 @@ router.post('/payment', async (req, res) => {
 
 
 });
+// === END
+
+// === BATALKAN PEMBAYARAN
+router.patch('/payment/cancel', async (req,res)=>{
+    let { id_bill } = req.body;
+
+    try {
+        if (stringUtils.isEmptyString(id_bill)) {
+            return res.status(400).json('Data tidak valid');
+        }
+
+        let dataBills = await knex('lottery_club_period_detail_bills')
+            .where('id', '=', id_bill).first();
+
+        if (!dataBills) {
+            return res.status(400).json('ID Periode tidak valid');
+        }
+
+        await knex('lottery_club_period_detail_bills').update({
+            'midtrans_order_id': null,
+            'midtrans_transaction_id': null,
+            'payment_type': null,
+            'acquiring_bank': null,
+            'va_num': null,
+            'midtrans_transaction_status': null,
+            'midtrans_created_at': null,
+            'midtrans_expired_at': null,
+        }).where('id', '=', id_bill);
+
+        let dataBillsUpdated = await knex('lottery_club_period_detail_bills')
+            .where('id', '=', id_bill).first();
+
+        return res.status(200).json(dataBillsUpdated);
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json('ERROR!');
+    }
+});
+// === END
+
+// === GET LIST PEMBAYARAN ANGGOTA (REQ ID PERTEMUAN)
+router.get('/payment/all/:idPertemuan', async (req,res)=>{
+    let { idPertemuan } = req.params;
+
+    try {
+        if (stringUtils.isEmptyString(idPertemuan)) {
+            return res.status(400).json('Data tidak valid');
+        }
+
+        let listDataBills = await knex('lottery_club_period_detail_bills')
+            .where('lottery_club_period_detail_id', '=', idPertemuan);
+
+        for (let idx = 0; idx < listDataBills.length; idx++) {
+            let dataUser = await knex('users').where('id','=', listDataBills[idx].user_id).first();
+            listDataBills[idx].data_user = dataUser;
+
+            if (listDataBills[idx].updated_by != null) {
+                let dataUserKonfirmasi = await knex('users').where('id','=', listDataBills[idx].updated_by).first();
+                listDataBills[idx].data_user_konfirmasi = dataUserKonfirmasi;
+            }
+        }
+
+        return res.status(200).json(listDataBills);
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json('ERROR!');
+    }
+});
+// === END
+
+// === GET PEMBAYARAN ANGGOTA (REQ ID PAYMENT)
+router.get('/payment/idPayment/:idPayment', async (req,res)=>{
+    let { idPayment } = req.params;
+
+    try {
+        if (stringUtils.isEmptyString(idPayment)) {
+            return res.status(400).json('Data tidak valid');
+        }
+
+        let dataBills = await knex('lottery_club_period_detail_bills')
+            .where('id', '=', idPayment).first();
+
+            let dataUser = await knex('users').where('id','=', dataBills.user_id).first();
+        dataBills.data_user = dataUser;
+
+        if (dataBills.updated_by != null) {
+            let dataUserKonfirmasi = await knex('users').where('id','=', dataBills.updated_by).first();
+            dataBills.data_user_konfirmasi = dataUserKonfirmasi;
+        }
+       
+
+        return res.status(200).json(dataBills);
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json('ERROR!');
+    }
+});
+// === END
+
+// === PEMBAYARAN OFFLINE
+router.patch('/payment/cash', isAuthenticated,async (req,res)=>{
+    let { id_bill } = req.body;
+    let user = req.authenticatedUser;
+    try {
+        if (stringUtils.isEmptyString(id_bill)) {
+            return res.status(400).json('Data tidak valid');
+        }
+
+        let dataBills = await knex('lottery_club_period_detail_bills')
+            .where('id', '=', id_bill).first();
+
+        if (!dataBills) {
+            return res.status(400).json('ID Periode tidak valid');
+        }
+
+        await knex('lottery_club_period_detail_bills').update({
+            'midtrans_order_id': null,
+            'midtrans_transaction_id': null,
+            'payment_type': 'Cash',
+            'acquiring_bank': null,
+            'va_num': null,
+            'midtrans_transaction_status': null,
+            'midtrans_created_at': null,
+            'midtrans_expired_at': null,
+            "status": 1,
+            "updated_at": moment().toDate(),
+            "updated_by": user.id
+        }).where('id', '=', id_bill);
+
+        return res.status(200).json("Berhasil Pembayaran Cash !");
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json('ERROR!');
+    }
+});
+// === END
 
 // === COBA COBA
 router.post('/cobacoba', async (req, res) => {
