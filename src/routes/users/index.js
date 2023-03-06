@@ -17,7 +17,7 @@ const {
 const { isAuthenticated } = require('../../middleware/auth');
 const { randomVarchar } = require('../../utils/strings');
 
-// -- REGISTER
+// === REGISTER
 router.post('/register', async (req, res) => {
     let { namaLengkap, jenisKelamin, tanggalLahir, noTelp, kataSandi } =
         req.body;
@@ -54,9 +54,9 @@ router.post('/register', async (req, res) => {
         return res.status(500).json('ERROR!');
     }
 });
-// -- End REGISTER
+// === END
 
-// -- LOGIN
+// === LOGIN
 router.post('/login', async (req, res) => {
     let { noTelp, kataSandi } = req.body;
     try {
@@ -72,6 +72,30 @@ router.post('/login', async (req, res) => {
         }
 
         delete user.password;
+
+        let dataSubDistrict = await knex('sub_districts')
+            .where('id', '=', user.sub_district_id).first();
+        let dataUrbanVillage = await knex({ u: 'urban_villages' })
+            .select('u.*', {
+                id_kecamatan: 'sd.id',
+                nama_kecamatan: 'sd.name',
+                wilayah: 'sd.wilayah',
+            }).where('u.id', '=', user.urban_village_id)
+            .join({ sd: 'sub_districts' }, 'sd.id', 'u.kecamatan_id');
+
+        dataUrbanVillage = dataUrbanVillage.map((x) => {
+            return {
+                id: x.id,
+                name: x.name,
+                kecamatan: {
+                    id: x.id_kecamatan,
+                    nama_kecamatan: x.nama_kecamatan,
+                    wilayah: x.wilayah,
+                },
+            };
+        });
+        user.data_sub_district = dataSubDistrict;
+        user.data_urban_village = dataUrbanVillage[0];
 
         let payload = { ...user };
 
@@ -125,7 +149,7 @@ router.post('/login', async (req, res) => {
                     .first();
                 dataArea.lottery_club_id = dataLotteryClub;
             }
-            
+
             let dataKetuaRT = await knex('users')
                 .where('id', '=', dataArea.ketua_id)
                 .first();
@@ -233,9 +257,9 @@ router.post('/login', async (req, res) => {
         return res.status(500).json('ERROR!');
     }
 });
-// -- End LOGIN
+// === END
 
-// -- UID FIREBASE
+// === UID FIREBASE
 router.post('/verifyUID/:uid', async (req, res) => {
     let { uid } = req.params;
     let firebaseAuth = firebaseAdmin.auth();
@@ -245,9 +269,9 @@ router.post('/verifyUID/:uid', async (req, res) => {
 
     return res.status(200).json('OK');
 });
-// -- End UID FIREBASE
+// === END
 
-// -- UPLOAD PROFILE PICTURE
+// === UPLOAD PROFILE PICTURE
 router.patch(
     '/uploadProfilePicture/:uid',
     isAuthenticated,
@@ -272,9 +296,9 @@ router.patch(
         return res.status(200).json(req.file.filename);
     }
 );
-// -- END UPLOAD PROFILE PICTURE
+// === END 
 
-// -- UPDATE PROFILE (Nama, Jenis Kelamin, Tanggal Lahir, Alamat)
+// === UPDATE PROFILE (Nama, Jenis Kelamin, Tanggal Lahir, Alamat)
 router.patch('/updateProfile/:uid', isAuthenticated, async (req, res) => {
     let { uid } = req.params;
     let { full_name, gender, born_date, address } = req.body;
@@ -315,9 +339,9 @@ router.patch('/updateProfile/:uid', isAuthenticated, async (req, res) => {
         return res.status(500).json('ERROR!');
     }
 });
-// -- END UPDATE PROFILE (Nama, Jenis Kelamin, Tanggal Lahir, Alamat)
+// === END 
 
-// -- REFRESH TOKEN
+// === REFRESH TOKEN
 router.post('/refreshToken/:id', async (req, res) => {
     let { id } = req.params;
     let { refreshTokenUser } = req.body;
@@ -343,9 +367,9 @@ router.post('/refreshToken/:id', async (req, res) => {
         return res.status(500).json('ERROR');
     }
 });
-// -- END REFRESH TOKEN
+// === END 
 
-// -- GET MY PROFILE
+// === GET MY PROFILE
 router.get('/myprofile', isAuthenticated, async (req, res) => {
     try {
         let id = req.authenticatedUser.id;
@@ -356,9 +380,9 @@ router.get('/myprofile', isAuthenticated, async (req, res) => {
         return res.status(500).json('ERROR');
     }
 });
-// -- END GET MY PROFILE
+// === END
 
-// -- UPLOAD SIGNATURE PNG
+// === UPLOAD SIGNATURE PNG
 router.patch(
     '/uploadSignatureImage/:uid',
     isAuthenticated,
@@ -383,12 +407,10 @@ router.patch(
         return res.status(200).json(req.file.filename);
     }
 );
-// -- END UPLOAD SIGNATURE PNG
+// === END 
 
-// -- REQ USER ROLE
-router.post(
-    '/reqUserRole',
-    isAuthenticated,
+// === REQ USER ROLE
+router.post('/reqUserRole', isAuthenticated,
     uploadItemFileLampiran.fields([
         { name: 'ktp', maxCount: 1 },
         { name: 'ktpSelfie', maxCount: 1 },
@@ -413,6 +435,7 @@ router.post(
             // Mengecek apakah ada req role lain yang masih aktif pada user tersebut
             let userRoleReqActive = await knex('user_role_requests')
                 .where('confirmater_id', 'IS', null)
+                .andWhere('requester_id', '=', user.id)
                 .first();
             if (userRoleReqActive) {
                 return res.status(400).json('Req Role masih ada yang active');
@@ -610,9 +633,9 @@ router.post(
         }
     }
 );
-// -- END REQ USER ROLE
+// === END 
 
-// -- UPDATE USER ROLE (Konfirmasi Req User Role)
+// === UPDATE USER ROLE (Konfirmasi Req User Role)
 router.patch('/updateUserRoleRequest', isAuthenticated, async (req, res) => {
     let byuid = req.authenticatedUser;
     let { user_role_requests_id, isAccepted } = req.body;
@@ -802,7 +825,7 @@ router.patch('/updateUserRoleRequest', isAuthenticated, async (req, res) => {
         return res.status(500).json('ERROR!');
     }
 });
-// -- END UPDATE USER ROLE (Konfirmasi Req User Role)
+// === END 
 
 // === LIST USER WILAYAH
 router.post('/listUserWilayah', isAuthenticated, async (req, res) => {
@@ -828,7 +851,7 @@ router.post('/listUserWilayah', isAuthenticated, async (req, res) => {
                 delete listUserWilayah[idx].created_by;
             }
         }
-        
+
         return res.status(200).json(listUserWilayah);
     } catch (error) {
         console.error(error);
@@ -836,6 +859,142 @@ router.post('/listUserWilayah', isAuthenticated, async (req, res) => {
     }
 });
 // === END
+
+// === GET USER ROLE REQ JADI WARGA
+router.get('/getRoleRequest/typeReqRole/warga/isConfirmation/:isConfirm', isAuthenticated, async (req, res) => {
+    let user = req.authenticatedUser;
+    let { isConfirm } = req.params;
+    try {
+        if (user.user_role != 7) {
+            return res.status(400).json('Anda tidak memiliki privilage');
+        }
+
+        let listDataUserReqRole;
+
+        if (isConfirm == 'yes') {
+            listDataUserReqRole = await knex('user_role_requests')
+                .whereRaw('confirmater_id != requester_id')
+                .andWhere('confirmater_id', 'IS NOT', null)
+                .andWhere('area_id', '=', user.area_id)
+                .andWhere('request_role', '=', 3);
+
+            for (let idx = 0; idx < listDataUserReqRole.length; idx++) {
+                let dataUserRequester = await knex('users').where('id', '=', listDataUserReqRole[idx].requester_id).first();
+                listDataUserReqRole[idx].data_user_requester = dataUserRequester;
+                let dataUserConfirmater = await knex('users').where('id', '=', listDataUserReqRole[idx].confirmater_id).first();
+                listDataUserReqRole[idx].data_user_confirmater = dataUserConfirmater;
+            }
+        } else {
+            listDataUserReqRole = await knex('user_role_requests')
+                .whereNull('confirmater_id')
+                .andWhere('area_id', '=', user.area_id)
+                .andWhere('request_role', '=', 3);
+
+            for (let idx = 0; idx < listDataUserReqRole.length; idx++) {
+                let dataUser = await knex('users').where('id', '=', listDataUserReqRole[idx].requester_id).first();
+                listDataUserReqRole[idx].data_user_requester = dataUser;
+            }
+        }
+
+        return res.status(200).json(listDataUserReqRole);
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json('ERROR');
+    }
+})
+// === END
+
+// === KONFIRMASI REQ JADI WARGA
+router.patch('/update/roleReq/warga', isAuthenticated, async (req, res) => {
+    let user = req.authenticatedUser;
+    let { idRoleReq, typeConfirmation } = req.body;
+    try {
+        if (user.user_role != 7) {
+            return res.status(400).json('Anda tidak memiliki privilage');
+        }
+
+        if (typeConfirmation != 'terima' && typeConfirmation != 'tolak') {
+            return res.status(400).json('Data tidak valid');
+        }
+
+        if (stringUtils.isEmptyString(idRoleReq)) {
+            return res.status(400).json('Data tidak valid');
+        }
+
+
+        if (typeConfirmation == 'terima') {
+            await knex('user_role_requests').update({
+                "confirmater_id": user.id,
+                "accepted_at": moment().toDate()
+            }).where('id', '=', idRoleReq);
+
+            let dataReq = await knex('user_role_requests').where('id', '=', idRoleReq).first();
+
+            await knex('users').update({
+                "sub_district_id": user.sub_district_id,
+                "urban_village_id": user.urban_village_id,
+                "rw_num": user.rw_num,
+                "rt_num": user.rt_num,
+                "area_id": user.area_id,
+                "user_role": 3
+            }).where('id', '=', dataReq.requester_id);
+            return res.status(200).json("Berhasil menerima !");
+        } else {
+            await knex('user_role_requests').update({
+                "confirmater_id": user.id,
+                "rejected_at": moment().toDate()
+            }).where('id', '=', idRoleReq);
+            return res.status(200).json("Berhasil menolak !");
+        }
+
+
+
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json('ERROR');
+    }
+})
+// === END
+
+// === GET USER ROLE REQ 
+router.get('/getRoleRequest/id/:idReqRole', async (req, res) => {
+    let { idReqRole } = req.params;
+    try {
+        let dataReqRole = await knex('user_role_requests').where('id', '=', idReqRole).first();
+
+        if (!dataReqRole || dataReqRole == null) {
+            return res.status(400).json('Data tidak valid');
+        }
+
+        let dataUserRequester = await knex('users').where('id', '=', dataReqRole.requester_id).first();
+        dataReqRole.data_user_requester = dataUserRequester;
+        let dataUserConfirmater = await knex('users').where('id', '=', dataReqRole.confirmater_id).first();
+        dataReqRole.data_user_confirmater = dataUserConfirmater;
+
+        return res.status(200).json(dataReqRole);
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json('ERROR');
+    }
+})
+// === END
+
+// === GET TOTAL ANGGOTA WILAYAH (REQ AREA_ID)
+router.get('/getCountAnggota/wilayah/:idWilayah', async (req, res) => {
+    let { idWilayah } = req.params;
+    try {
+        let dataTotalAnggota = await knex('users')
+            .count('id')
+            .where('area_id', '=', idWilayah).first();
+
+        return res.status(200).json(dataTotalAnggota["count(`id`)"]);
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json('ERROR');
+    }
+})
+// === END
+
 
 
 router.get('/', async (req, res) => {

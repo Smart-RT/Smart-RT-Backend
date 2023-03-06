@@ -530,6 +530,38 @@ router.patch('/healthTaskHelp', isAuthenticated, async (req, res) => {
 });
 // === END
 
+// === GET DATA PATIENT GROUPING BY DISEASE GROUP (REQ ID AREA)
+router.get('/getDataPatientGroupingByDiseaseGroup/area/:idArea/monthYear/:monthYear', async (req, res) => {
+    let { idArea, monthYear } = req.params;
+    try {
+        let dateNow = moment().format('YYYY-MM');
+        let dataTotalAnggota = await knex.select({
+            disease_group: "dg.name",
+            total_patient: (sub) => {
+                sub.count("uh.disease_group_id")
+                    .from({ uh: 'user_health_reports' })
+                    .where('uh.disease_group_id', '=', knex.ref('dg.id'))
+                    .whereRaw(`
+                        (
+                            DATE_FORMAT(uh.created_at,"%Y-%m") = '${monthYear}' 
+                            OR DATE_FORMAT(uh.healed_at, "%Y-%m") = '${monthYear}'
+                            OR (
+                                uh.healed_at IS NULL 
+                                AND '${dateNow}' = '${monthYear}'
+
+                            )
+                        )`)
+                    .andWhere('uh.area_reported_id', '=', idArea)
+                    .andWhere('uh.confirmation_status', '=', 1);
+            }
+        }).from({ dg: 'disease_groups' }).orderBy('dg.id');
+        return res.status(200).json(dataTotalAnggota);
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json('ERROR');
+    }
+})
+// === END
 
 
 module.exports = router;
