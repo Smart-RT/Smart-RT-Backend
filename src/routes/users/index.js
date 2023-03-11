@@ -836,7 +836,11 @@ router.post('/listUserWilayah', isAuthenticated, async (req, res) => {
         }
 
         let listUserWilayah = await knex('users')
-            .where('area_id', '=', user.area_id);
+            .where('area_id', '=', user.area_id)
+            .orderBy([
+                { column: 'user_role', order: 'desc' }, 
+                { column: 'full_name', order: 'asc' }
+            ]);
 
         if (listUserWilayah) {
             for (let idx = 0; idx < listUserWilayah.length; idx++) {

@@ -225,4 +225,46 @@ const uploadItemFileLampiran = multer({
     },
 });
 
-module.exports = { uploadItemImage, uploadSignatureImage, uploadItemFileLampiran};
+const storageItemLampiranAdministrasi = multer.diskStorage({
+    destination: (req, file, callback) => {
+        let filePath = path.join(
+            __dirname,
+            '..',
+            '..',
+            '..',
+            'public',
+            'uploads',
+            'administrasi',
+            'file_lampiran'
+        );
+        if (!fs.existsSync(filePath)) {
+            fs.mkdirSync(filePath, { recursive: true });
+        } 
+        
+        callback(null, filePath);
+    },
+    filename: (req, file, callback) => {
+        let randomFileName = tokenUtils.createRefreshToken(15);
+        let filename = `${randomFileName}${path.extname(file.originalname)}`;
+        file.filename = filename;
+        callback(null, filename);
+    },
+});
+
+const uploadItemLampiranAdministrasi = multer({
+    storage: storageItemLampiranAdministrasi,
+    fileFilter: (req, file, callback) => {
+        const fileTypes = /jpeg|jpg|png/;
+        const extName = fileTypes.test(
+            path.extname(file.originalname.toLowerCase())
+        );
+        const mimeType = fileTypes.test(file.mimetype);
+        if (extName && mimeType) return callback(null, true);
+        const error =
+            'File gambar yang dapat diupload hanya jpeg, jpg, atau png';
+        req.multerError = error;
+        callback(new Error(error));
+    },
+});
+
+module.exports = { uploadItemImage, uploadSignatureImage, uploadItemFileLampiran, uploadItemLampiranAdministrasi};

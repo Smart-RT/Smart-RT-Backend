@@ -17,9 +17,46 @@ const randomVarchar = (length) => {
     return result;
 };
 
+const isReligionAvailable = (text) => {
+    var txt = text.toLowerCase();
+    if (txt == 'islam' 
+        || txt == 'kristen'
+        || txt == 'katolik'
+        || txt == 'hindu'
+        || txt == 'budha'
+        || txt == 'kong hu cu') {
+        return true;
+    }
+    return false;
+}
+
+const isGenderAvailable = (text) => {
+    var txt = text.toLowerCase();
+    if (txt == 'laki-laki' 
+        || txt == 'perempuan') {
+        return true;
+    }
+    return false;
+}
+
+const isWeddingStatusAvailable = (text) => {
+    var txt = text.toLowerCase();
+    if (txt == 'belum kawin' 
+        || txt == 'kawin'
+        || txt == 'cerai mati'
+        || txt == 'cerai hidup') {
+        return true;
+    }
+    return false;
+}
+
+
 module.exports = {
     isEmptyString,
     isOneOf,
     isPhoneValid,
     randomVarchar,
+    isReligionAvailable,
+    isGenderAvailable,
+    isWeddingStatusAvailable,
 };
