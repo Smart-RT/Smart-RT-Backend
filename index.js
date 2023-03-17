@@ -25,6 +25,9 @@ firebaseAdmin.initializeApp({
 // Buat Server Express
 const server = express();
 
+// Agar Server Express bisa terima body / form dengan format JSON
+server.use(express.json());
+
 // Agar Server Express bisa terima body / form dengan format x-www-form-urlencoded
 server.use(express.urlencoded({ extended: true }));
 
