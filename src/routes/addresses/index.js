@@ -2,7 +2,7 @@
 const router = require('express').Router();
 const knex = require('../../database');
 
-// GET SUB DISTRICTS
+// === GET SUB DISTRICTS
 router.get('/subDistricts', async (req, res) => {
     try {
         let subDistricts = await knex('sub_districts').orderBy('name');
@@ -12,9 +12,9 @@ router.get('/subDistricts', async (req, res) => {
         return res.status(500).json('ERROR!');
     }
 });
-// -- END GET SUB DISTRICTS
+// === END
 
-// GET URBAN VILLAGE
+// === GET URBAN VILLAGE
 router.get('/urbanVillages', async (req, res) => {
     try {
         let urbanVillages = await knex({ u: 'urban_villages' })
@@ -43,6 +43,6 @@ router.get('/urbanVillages', async (req, res) => {
         return res.status(500).json('ERROR!');
     }
 });
-// -- END GET URBAN VILLAGE
+// === END
 
 module.exports = router;

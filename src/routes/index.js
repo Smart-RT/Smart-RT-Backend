@@ -10,6 +10,7 @@ const routerPayment = require('./payment');
 const routerCronJob = require('./cron_job');
 const routerAdministration = require('./administration');
 const routerNews = require('./news');
+const routerMeet = require('./meet');
 
 router.use('/users', routerUser);
 router.use('/addresses', routerAddress);
@@ -19,6 +20,7 @@ router.use('/payment', routerPayment);
 router.use('/cron', routerCronJob);
 router.use('/administration', routerAdministration);
 router.use('/news', routerNews);
+router.use('/meet', routerMeet);
 router.get('/', (req, res) => {
     return res.status(200).json('OK!');
 });
