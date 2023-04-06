@@ -11,6 +11,7 @@ const routerCronJob = require('./cron_job');
 const routerAdministration = require('./administration');
 const routerNews = require('./news');
 const routerMeet = require('./meet');
+const routerEvent = require('./event');
 
 router.use('/users', routerUser);
 router.use('/addresses', routerAddress);
@@ -21,6 +22,7 @@ router.use('/cron', routerCronJob);
 router.use('/administration', routerAdministration);
 router.use('/news', routerNews);
 router.use('/meet', routerMeet);
+router.use('/event', routerEvent);
 router.get('/', (req, res) => {
     return res.status(200).json('OK!');
 });
