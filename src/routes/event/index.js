@@ -180,19 +180,34 @@ router.post('/task/detail/give-task', isAuthenticated, async (req, res) => {
         }
 
         let dataTask = await knex('event_tasks').where('id','=', task_id).first();
-        for (let idx = 0; idx < list_user_id.length; idx++) {
+        if (Array.isArray(list_user_id)) {
+            for (let idx = 0; idx < list_user_id.length; idx++) {
+                await knex('event_task_details').insert({
+                    "user_id": list_user_id[idx],
+                    "task_id": task_id,
+                    "created_at": moment().toDate(),
+                    "created_by": user.id,
+                    "status": 1
+                });
+            }
+            await knex('event_tasks').update({
+                "total_worker_now": dataTask.total_worker_now + list_user_id.length,
+            }).where('id','=', task_id); 
+        }else{
             await knex('event_task_details').insert({
-                "user_id": list_user_id[idx],
+                "user_id": list_user_id,
                 "task_id": task_id,
                 "created_at": moment().toDate(),
                 "created_by": user.id,
                 "status": 1
             });
+            await knex('event_tasks').update({
+                "total_worker_now": dataTask.total_worker_now + 1,
+            }).where('id','=', task_id); 
         }
+        
 
-        await knex('event_tasks').update({
-            "total_worker_now": dataTask.total_worker_now + list_user_id.length,
-        }).where('id','=', task_id); 
+        
         
         let dataTaskNew = await knex('event_tasks').where('id','=', task_id).first();
         if (dataTaskNew.total_worker_needed == dataTaskNew.total_worker_now) {
