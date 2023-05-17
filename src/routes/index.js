@@ -14,6 +14,7 @@ const routerMeet = require('./meet');
 const routerEvent = require('./event');
 const routerCommitte = require('./committe');
 const routerNeighbourhoodHead = require('./neighbourhood_head');
+const routerVote = require('./vote');
 
 router.use('/users', routerUser);
 router.use('/addresses', routerAddress);
@@ -27,6 +28,7 @@ router.use('/meet', routerMeet);
 router.use('/event', routerEvent);
 router.use('/committe', routerCommitte);
 router.use('/neighbourhood-head', routerNeighbourhoodHead);
+router.use('/vote', routerVote);
 router.get('/', (req, res) => {
     return res.status(200).json('OK!');
 });

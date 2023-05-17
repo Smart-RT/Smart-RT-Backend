@@ -9,9 +9,15 @@ const { default: axios } = require('axios');
 const { randomVarchar } = require('../../utils/strings');
 const cron = require('node-cron');
 
+/**
+ * https://www.npmjs.com/package/node-cron
+ */
+
 // cron.schedule('*/2 * * * *', () => {
 //   console.log('running a task every two minutes');
 
 // });
+
+
 
 module.exports = router;

@@ -25,8 +25,6 @@ router.get('/get/my', isAuthenticated, async (req, res) => {
             end: 'tenure_end_at'
         }).from('areas').where('id','=',user.area_id).first();
 
-        console.log(dataDate);
-
 
         let data = await knex('committees')
             .where('user_id','=', user.id)
@@ -34,9 +32,7 @@ router.get('/get/my', isAuthenticated, async (req, res) => {
             .andWhere('status', '!=', -2)
             .orderBy('id', 'desc')
             .first();
-        
-        console.log(data);
-
+            
         if (data) {
             let dataUser = await knex('users').where('id','=', data.user_id).first();
             delete data.user_id;
