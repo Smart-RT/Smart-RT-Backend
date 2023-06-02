@@ -45,4 +45,38 @@ router.get('/urbanVillages', async (req, res) => {
 });
 // === END
 
+// === GET TOTAL POPULATION
+router.get('/get/total-population', async (req, res) => {
+    try {
+        let subDistricts = await knex('sub_districts');
+
+        let data = {
+            "utara": 0,
+            "timur": 0,
+            "barat": 0,
+            "selatan": 0,
+            "pusat": 0,
+        };
+        for (let i = 0; i < subDistricts.length; i++) {
+            if (subDistricts[i].wilayah == 0) {
+                data.pusat = data.pusat + subDistricts[i].total_population
+            }else if (subDistricts[i].wilayah == 1) {
+                data.timur = data.timur + subDistricts[i].total_population
+            }else if (subDistricts[i].wilayah == 2) {
+                data.barat = data.barat + subDistricts[i].total_population
+            }else if (subDistricts[i].wilayah == 3) {
+                data.utara = data.utara + subDistricts[i].total_population
+            }else if (subDistricts[i].wilayah == 4) {
+                data.selatan = data.selatan + subDistricts[i].total_population
+            }
+        }
+
+        return res.status(200).json(data);
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json('ERROR!');
+    }
+});
+// === END
+
 module.exports = router;

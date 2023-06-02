@@ -39,7 +39,7 @@ router.post('/register', async (req, res) => {
         } else {
             let hashedPassword = bcrypt.hashSync(kataSandi, 10);
 
-            let newUser = await knex('users').insert({
+            let newUserID = await knex('users').insert({
                 full_name: namaLengkap,
                 gender: jenisKelamin,
                 born_date: moment(tanggalLahir, 'YYYY-MM-DD').toDate(),
@@ -47,7 +47,7 @@ router.post('/register', async (req, res) => {
                 password: hashedPassword,
                 created_at: moment().toDate(),
             });
-            return res.status(200).json(newUser);
+            return res.status(200).json(newUserID[0]);
         }
     } catch (error) {
         console.error(error);
@@ -1100,6 +1100,50 @@ router.get('/getRoleRequest/typeReqRole/warga/isConfirmation/:isConfirm', isAuth
 })
 // === END
 
+// === GET USER ROLE REQ JADI WARGA
+router.get('/getRoleRequest/typeReqRole/ketua-rt', isAuthenticated, async (req, res) => {
+    let user = req.authenticatedUser;
+
+    try {
+        if (user.user_role != 1) {
+            return res.status(400).json('Anda tidak memiliki privilage');
+        }
+
+        let listDataUserReqRole = await knex('user_role_requests')
+            .whereRaw(`
+                (confirmater_id != requester_id OR confirmater_id is null)`)
+            .andWhere('confirmater_role_id','=', 1)
+            .andWhere('request_role', '=', 7);
+
+        for (let idx = 0; idx < listDataUserReqRole.length; idx++) {
+            let dataUserRequester = await knex('users').where('id', '=', listDataUserReqRole[idx].requester_id).first();
+            listDataUserReqRole[idx].data_user_requester = dataUserRequester;
+ 
+            if (listDataUserReqRole[idx].urban_village_id != null) {
+                let dataUrbanVillage = await knex('urban_villages').where('id','=', listDataUserReqRole[idx].urban_village_id).first();
+                listDataUserReqRole[idx].urban_village_id = dataUrbanVillage;
+            }
+            
+            if (listDataUserReqRole[idx].sub_district_id != null) {
+                let dataSubDistrict = await knex('sub_districts').where('id','=', listDataUserReqRole[idx].sub_district_id).first();
+                listDataUserReqRole[idx].sub_district_id = dataSubDistrict;
+            }
+            
+            if (listDataUserReqRole[idx].confirmater_id != null) {
+                let dataUserConfirmater = await knex('users').where('id', '=', listDataUserReqRole[idx].confirmater_id).first();
+                listDataUserReqRole[idx].data_user_confirmater = dataUserConfirmater;
+            }
+        }
+
+
+        return res.status(200).json(listDataUserReqRole);
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json('ERROR');
+    }
+})
+// === END
+
 // === KONFIRMASI REQ JADI WARGA
 router.patch('/update/roleReq/warga', isAuthenticated, async (req, res) => {
     let user = req.authenticatedUser;
@@ -1152,6 +1196,144 @@ router.patch('/update/roleReq/warga', isAuthenticated, async (req, res) => {
 })
 // === END
 
+// === KONFIRMASI REQ JADI WARGA
+router.patch('/update/roleReq/ketua', isAuthenticated, async (req, res) => {
+    let user = req.authenticatedUser;
+    let { idRoleReq, isAccepted, tenure_end_at } = req.body;
+    try {
+        if (user.user_role != 1) {
+            return res.status(400).json('Anda tidak memiliki privilage');
+        }
+
+        if (stringUtils.isEmptyString(idRoleReq) || stringUtils.isEmptyString(isAccepted) || stringUtils.isEmptyString(tenure_end_at)) {
+            return res.status(400).json('Data tidak valid');
+        }
+
+
+        if (isAccepted) {
+            let dataReq = await knex('user_role_requests').where('id', '=', idRoleReq).first();
+
+            let dataKembar, area_code, wakil_ketua_code, sekretaris_code, bendahara_code;
+            do {
+                area_code = stringUtils.randomVarchar(10);
+                wakil_ketua_code = stringUtils.randomVarchar(10);
+                sekretaris_code = stringUtils.randomVarchar(10);
+                bendahara_code = stringUtils.randomVarchar(10);
+
+                dataKembar = await knex('areas')
+                    .where('area_code', '=', area_code)
+                    .orWhere('area_code', '=', wakil_ketua_code)
+                    .orWhere('area_code', '=', sekretaris_code)
+                    .orWhere('area_code', '=', bendahara_code)
+                    .orWhere('wakil_ketua_code', '=', area_code)
+                    .orWhere('wakil_ketua_code', '=', wakil_ketua_code)
+                    .orWhere('wakil_ketua_code', '=', sekretaris_code)
+                    .orWhere('wakil_ketua_code', '=', bendahara_code)
+                    .orWhere('sekretaris_code', '=', area_code)
+                    .orWhere('sekretaris_code', '=', wakil_ketua_code)
+                    .orWhere('sekretaris_code', '=', sekretaris_code)
+                    .orWhere('sekretaris_code', '=', bendahara_code)
+                    .orWhere('bendahara_code', '=', area_code)
+                    .orWhere('bendahara_code', '=', wakil_ketua_code)
+                    .orWhere('bendahara_code', '=', sekretaris_code)
+                    .orWhere('bendahara_code', '=', bendahara_code)
+                    .first();
+                
+            } while (
+                dataKembar || 
+                (area_code == wakil_ketua_code) || 
+                (area_code == sekretaris_code) || 
+                (area_code == bendahara_code) ||
+                (wakil_ketua_code == sekretaris_code) ||
+                (wakil_ketua_code == bendahara_code) ||
+                (sekretaris_code == bendahara_code)
+            );
+
+            console.log('1');
+
+            let idArea = await knex('areas').insert({
+                'area_code': area_code,
+                'rt_num': dataReq.rt_num,
+                'rw_num': dataReq.rw_num,
+                'sub_district_id': dataReq.sub_district_id,
+                'urban_village_id': dataReq.urban_village_id,
+                'is_lottery_club_period_active': 0,
+                'ketua_id': dataReq.requester_id,
+                'wakil_ketua_code': wakil_ketua_code,
+                'sekretaris_code': sekretaris_code,
+                'bendahara_code': bendahara_code,
+                'tenure_end_at': tenure_end_at,
+                'periode': 1,
+            });
+
+            console.log('12');
+
+            await knex('user_role_requests').update({
+                "confirmater_id": user.id,
+                "accepted_at": moment().toDate()
+            }).where('id', '=', idRoleReq);
+
+            console.log('123');
+
+            await knex('users').update({
+                "sub_district_id": dataReq.sub_district_id,
+                "urban_village_id": dataReq.urban_village_id,
+                "rw_num": dataReq.rw_num,
+                "rt_num": dataReq.rt_num,
+                "area_id": idArea[0],
+                "user_role": 7
+            }).where('id', '=', dataReq.requester_id);
+
+            console.log('4');
+
+            await knex('user_role_requests').update({
+                "confirmater_id": user.id,
+                "rejected_at": moment().toDate()
+            }).where('rt_num','=', dataReq.rt_num)
+            .andWhere('rw_num','=', dataReq.rw_num)
+            .andWhere('urban_village_id','=', dataReq.urban_village_id)
+            .andWhere('sub_district_id','=', dataReq.sub_district_id)
+            .whereNull('accepted_at')
+            .whereNull('rejected_at');
+            console.log('5');
+
+            let dataUrbanVillage = await knex('urban_villages').where('id','=', dataReq.urban_village_id).first();
+            let dataSubDistrict = await knex('sub_districts').where('id','=', dataReq.sub_district_id).first();
+
+            await knex('urban_villages').update({
+                'total_population': dataUrbanVillage.total_population + 1
+            }).where('id','=', dataReq.urban_village_id);
+
+            await knex('sub_districts').update({
+                'total_population': dataSubDistrict.total_population + 1
+            }).where('id','=', dataReq.sub_district_id);
+
+            await knex('user_role_logs').insert({
+                'user_id': dataReq.requester_id,
+                'before_user_role_id': 2,
+                'after_user_role_id': 7,
+                'created_at': moment().toDate()
+            });
+
+            return res.status(200).json("Berhasil menerima !");
+        } else {
+            
+            await knex('user_role_requests').update({
+                "confirmater_id": user.id,
+                "rejected_at": moment().toDate()
+            }).where('id', '=', idRoleReq);
+            return res.status(200).json("Berhasil menolak !");
+        }
+
+
+
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json('ERROR');
+    }
+})
+// === END
+
 // === GET USER ROLE REQ 
 router.get('/getRoleRequest/id/:idReqRole', async (req, res) => {
     let { idReqRole } = req.params;
@@ -1184,6 +1366,31 @@ router.get('/getCountAnggota/wilayah/:idWilayah', async (req, res) => {
             .where('area_id', '=', idWilayah).first();
 
         return res.status(200).json(dataTotalAnggota["count(`id`)"]);
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json('ERROR');
+    }
+})
+// === END
+
+// === ADD USER ROLE LOG
+router.post('/role/log/add', async (req, res) => {
+    let {   user_id, 
+            before_user_role_id, 
+            after_user_role_id, 
+            notes } = req.body;
+
+    try {
+        await knex('user_role_logs')
+            .insert({
+                "user_id": user_id,
+                "before_user_role_id": before_user_role_id,
+                "after_user_role_id": after_user_role_id,
+                "notes": notes,
+                "created_at": moment().toDate()
+            });
+
+        return res.status(200).json("Berhasil mencatat log!");
     } catch (error) {
         console.error(error);
         return res.status(500).json('ERROR');
