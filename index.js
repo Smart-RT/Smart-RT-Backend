@@ -3,10 +3,16 @@
     require('dotenv').config();
     // Import Express Server
     const express = require('express');
-    // Import Firebase Admin SDK
-    const firebaseAdmin = require('firebase-admin');
+
     //  Import file service account
     const serviceAccount = require('./smart-rt-a2abb-firebase-adminsdk-gl0xs-77ea75454f.json');
+    // Import Firebase Admin SDK
+    const firebaseAdmin = require('firebase-admin');
+    // Inisialisasi Firebase Admin SDK 
+    firebaseAdmin.initializeApp({
+        credential: firebaseAdmin.credential.cert(serviceAccount)
+    });
+
     // Import path
     const path = require('path');
     // Import DB
@@ -17,10 +23,6 @@
     const { auth } = require('./src/middleware/auth');
 // -- IMPORT
 
-// Inisialisasi Firebase Admin SDK 
-firebaseAdmin.initializeApp({
-    credential: firebaseAdmin.credential.cert(serviceAccount)
-});
 
 // Buat Server Express
 const server = express();

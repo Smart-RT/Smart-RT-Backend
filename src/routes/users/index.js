@@ -1056,6 +1056,40 @@ router.post('/listUserWilayah', isAuthenticated, async (req, res) => {
 });
 // === END
 
+// === LIST USER WILAYAH
+router.get('/listUserWilayah/:areaID', isAuthenticated, async (req, res) => {
+    let { areaID } = req.params;
+    try {
+
+        let listUserWilayah = await knex('users')
+            .where('area_id', '=', areaID)
+            .orderBy([
+                { column: 'user_role', order: 'desc' }, 
+                { column: 'full_name', order: 'asc' }
+            ]);
+
+        if (listUserWilayah) {
+            for (let idx = 0; idx < listUserWilayah.length; idx++) {
+                delete listUserWilayah[idx].rt_num;
+                delete listUserWilayah[idx].sub_district_id;
+                delete listUserWilayah[idx].urban_village_id;
+                delete listUserWilayah[idx].rw_num;
+                delete listUserWilayah[idx].password;
+                delete listUserWilayah[idx].sign_img;
+                delete listUserWilayah[idx].refresh_token;
+                delete listUserWilayah[idx].created_at;
+                delete listUserWilayah[idx].created_by;
+            }
+        }
+
+        return res.status(200).json(listUserWilayah);
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json('ERROR');
+    }
+});
+// === END
+
 // === GET USER ROLE REQ JADI WARGA
 router.get('/getRoleRequest/typeReqRole/warga/isConfirmation/:isConfirm', isAuthenticated, async (req, res) => {
     let user = req.authenticatedUser;
@@ -1178,6 +1212,12 @@ router.patch('/update/roleReq/warga', isAuthenticated, async (req, res) => {
                 "area_id": user.area_id,
                 "user_role": 3
             }).where('id', '=', dataReq.requester_id);
+
+
+            let dataArea = await knex('areas').where('id','=',user.area_id).first();
+            await knex('areas').update({
+                'total_population': dataArea.total_population + 1
+            }).where('id','=',user.area_id);
             return res.status(200).json("Berhasil menerima !");
         } else {
             await knex('user_role_requests').update({
@@ -1196,7 +1236,7 @@ router.patch('/update/roleReq/warga', isAuthenticated, async (req, res) => {
 })
 // === END
 
-// === KONFIRMASI REQ JADI WARGA
+// === KONFIRMASI REQ JADI KETUA
 router.patch('/update/roleReq/ketua', isAuthenticated, async (req, res) => {
     let user = req.authenticatedUser;
     let { idRoleReq, isAccepted, tenure_end_at } = req.body;
