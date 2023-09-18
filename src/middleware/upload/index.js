@@ -351,6 +351,45 @@ const uploadItemLampiranJanjiTemu = multer({
     },
 });
 
+const storageItemFileCarouselHome = multer.diskStorage({
+    destination: (req, file, callback) => {
+        let filePath = path.join(
+            __dirname,
+            '..',
+            '..',
+            '..',
+            'public',
+            'uploads',
+            'carousel-home'
+        );
+        if (!fs.existsSync(filePath)) {
+            fs.mkdirSync(filePath, { recursive: true });
+        }
+        callback(null, filePath);
+    },
+    filename: (req, file, callback) => {
+        let randomFileName = tokenUtils.createRefreshToken(15);
+        let filename = `${randomFileName}${path.extname(file.originalname)}`;
+        callback(null, filename);
+    },
+});
+
+const uploadItemFileCarouselHome = multer({
+    storage: storageItemFileCarouselHome,
+    fileFilter: (req, file, callback) => {    
+        fileTypes = /jpeg|jpg|png/;
+        const extName = fileTypes.test(
+            path.extname(file.originalname.toLowerCase())
+        );
+        const mimeType = fileTypes.test(file.mimetype);
+        if (extName && mimeType) return callback(null, true);
+        const error =
+            'Format File yang dapat diupload tidak sesuai';
+        req.multerError = error;
+        callback(new Error(error));
+    },
+});
+
 module.exports = { 
     uploadItemImage, 
     uploadSignatureImage, 
@@ -358,4 +397,5 @@ module.exports = {
     uploadItemLampiranAdministrasi, 
     uploadItemLampiranPengumuman, 
     uploadItemLampiranJanjiTemu,
+    uploadItemFileCarouselHome
 };

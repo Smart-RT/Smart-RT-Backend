@@ -21,6 +21,8 @@
     const routes = require('./src/routes');
     // Import Middleware Auth
     const { auth } = require('./src/middleware/auth');
+    // Import Git Webhook
+    const { verifyGitHubWebHook, execPullInstall } = require('./src/utils/gitwebhook');
 // -- IMPORT
 
 
@@ -38,6 +40,20 @@ server.use('/public', express.static(path.join(__dirname, 'public')));
 
 // Masukkan router yang sudah dibuat, dan dapat diakses pada url /api (contoh localhost:3000/api)
 server.use('/api', auth, routes);
+
+// Agar server bisa git pull - npm install, saat ada push di github
+server.use('/gitpull', verifyGitHubWebHook, (req, res, next) =>{
+    console.log("Pull Command Received");
+    execPullInstall(`cd ${__dirname} && git pull && npm install && echo ${process.env.SERVER_PASS} | sudo -S systemctl restart ${process.env.SERVICE_NAME}`, (err, response) => {
+        if (!err) {
+            console.log({response});
+        }
+        else {
+            console.log({err});
+        }
+    });
+    res.status(200).send("Pull Command Received");
+});
 
 // Jalankan express server
 server.listen(process.env.PORT, () => {
