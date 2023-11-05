@@ -33,7 +33,11 @@ const server = express();
 server.use(express.json());
 
 // Agar Server Express bisa terima body / form dengan format x-www-form-urlencoded
-server.use(express.urlencoded({ extended: true }));
+server.use(express.urlencoded({ extended: true, 
+    verify: (req, res, buf, encoding) => {
+        req.rawBody = buf.toString(encoding || 'utf-8');
+    }, 
+}));
 
 // Untuk nyediain file statis di express
 server.use('/public', express.static(path.join(__dirname, 'public')));
