@@ -663,7 +663,7 @@ router.post('/reqUserRole', isAuthenticated,
 
                 // Mengambil dan mengembalikan data terbaru yang baru saja di insert
                 let newReq = await knex('user_role_requests')
-                    .where('id', '=', newID)
+                    .where('id', '=', newID[0])
                     .first();
                 return res.status(200).json(newReq);
             }
