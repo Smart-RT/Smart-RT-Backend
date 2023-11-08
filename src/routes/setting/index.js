@@ -83,6 +83,7 @@ router.post('/carousel/home/update', isAuthenticated,
                 return res.status(400).json('ID User tidak valid');
             }
 
+            /*
             // Update Karosel 1
             await knex('app_settings').update({
                 detail: req.files.Karosel1[0].filename,
@@ -97,7 +98,8 @@ router.post('/carousel/home/update', isAuthenticated,
             await knex('app_settings').update({
                 detail: req.files.Karosel3[0].filename,
             }).where('about', '=', 'carousel_home_3');
-
+            */
+           
             let filePath = path.join(
                 __dirname,
                 '..',
