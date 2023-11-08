@@ -53,9 +53,22 @@ router.patch('/update/subscribe-amount', isAuthenticated, async (req, res) => {
 });
 // === END
 
+// === GET CAROUSEL
+router.get('/carousel/home', isAuthenticated,async (req, res) => {
+    try {
+        let carousels = await knex('app_settings').
+            where('about', 'like', 'carousel_home%');
+        return res.status(200).send(carousels);
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json("ERROR!");
+    }
+})
+// === END
+
 // === UPDATE CAROUSEL
 router.post('/carousel/home/update', isAuthenticated,
-uploadItemFileCarouselHome.fields([
+    uploadItemFileCarouselHome.fields([
         { name: 'Karosel1', maxCount: 1 },
         { name: 'Karosel2', maxCount: 1 },
         { name: 'Karosel3', maxCount: 1 },
@@ -101,21 +114,21 @@ uploadItemFileCarouselHome.fields([
             fs.moveSync(
                 req.files.Karosel1[0].path,
                 path.join(filePath, `Karosel1.${req.files.Karosel1[0].mimetype.split('/')[1]}`),
-                {overwrite: true}
+                { overwrite: true }
             );
             fs.moveSync(
                 req.files.Karosel2[0].path,
                 path.join(filePath, `Karosel2.${req.files.Karosel1[0].mimetype.split('/')[1]}`),
-                {overwrite: true}
+                { overwrite: true }
             );
             fs.moveSync(
                 req.files.Karosel3[0].path,
                 path.join(filePath, `Karosel3.${req.files.Karosel1[0].mimetype.split('/')[1]}`),
-                {overwrite: true}
+                { overwrite: true }
             );
 
             return res.status(200).json("Berhasil Menyimpan Carousel");
-        
+
         } catch (error) {
             console.error(error);
             return res.status(500).json('ERROR!');
