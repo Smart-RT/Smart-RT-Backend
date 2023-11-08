@@ -1249,8 +1249,7 @@ router.patch('/update/roleReq/ketua', isAuthenticated, async (req, res) => {
             return res.status(400).json('Data tidak valid');
         }
 
-
-        if (isAccepted) {
+        if (isAccepted == 'true') {
             let dataReq = await knex('user_role_requests').where('id', '=', idRoleReq).first();
 
             let dataKembar, area_code, wakil_ketua_code, sekretaris_code, bendahara_code;
@@ -1357,7 +1356,7 @@ router.patch('/update/roleReq/ketua', isAuthenticated, async (req, res) => {
 
             return res.status(200).json("Berhasil menerima !");
         } else {
-            
+            let dataReq = await knex('user_role_requests').where('id', '=', idRoleReq).first();
             // Tetap jadi guest, soo tetap 2 rolenya
             await knex('user_role_logs').insert({
                 'user_id': dataReq.requester_id,
