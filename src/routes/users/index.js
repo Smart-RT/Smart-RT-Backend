@@ -1239,7 +1239,7 @@ router.patch('/update/roleReq/warga', isAuthenticated, async (req, res) => {
 // === KONFIRMASI REQ JADI KETUA
 router.patch('/update/roleReq/ketua', isAuthenticated, async (req, res) => {
     let user = req.authenticatedUser;
-    let { idRoleReq, isAccepted, tenure_end_at } = req.body;
+    let { idRoleReq, isAccepted, tenure_end_at, notes } = req.body;
     try {
         if (user.user_role != 1) {
             return res.status(400).json('Anda tidak memiliki privilage');
@@ -1358,6 +1358,15 @@ router.patch('/update/roleReq/ketua', isAuthenticated, async (req, res) => {
             return res.status(200).json("Berhasil menerima !");
         } else {
             
+            // Tetap jadi guest, soo tetap 2 rolenya
+            await knex('user_role_logs').insert({
+                'user_id': dataReq.requester_id,
+                'before_user_role_id': 2,
+                'after_user_role_id': 2,
+                'created_at': moment().toDate(),
+                'notes': notes
+            });
+
             await knex('user_role_requests').update({
                 "confirmater_id": user.id,
                 "rejected_at": moment().toDate()
