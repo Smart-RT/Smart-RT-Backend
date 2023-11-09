@@ -1288,8 +1288,6 @@ router.patch('/update/roleReq/ketua', isAuthenticated, async (req, res) => {
                 (sekretaris_code == bendahara_code)
             );
 
-            console.log('1');
-
             let idArea = await knex('areas').insert({
                 'area_code': area_code,
                 'rt_num': dataReq.rt_num,
@@ -1305,14 +1303,10 @@ router.patch('/update/roleReq/ketua', isAuthenticated, async (req, res) => {
                 'periode': 1,
             });
 
-            console.log('12');
-
             await knex('user_role_requests').update({
                 "confirmater_id": user.id,
                 "accepted_at": moment().toDate()
             }).where('id', '=', idRoleReq);
-
-            console.log('123');
 
             await knex('users').update({
                 "sub_district_id": dataReq.sub_district_id,
@@ -1323,8 +1317,6 @@ router.patch('/update/roleReq/ketua', isAuthenticated, async (req, res) => {
                 "user_role": 7
             }).where('id', '=', dataReq.requester_id);
 
-            console.log('4');
-
             await knex('user_role_requests').update({
                 "confirmater_id": user.id,
                 "rejected_at": moment().toDate()
@@ -1334,7 +1326,6 @@ router.patch('/update/roleReq/ketua', isAuthenticated, async (req, res) => {
             .andWhere('sub_district_id','=', dataReq.sub_district_id)
             .whereNull('accepted_at')
             .whereNull('rejected_at');
-            console.log('5');
 
             let dataUrbanVillage = await knex('urban_villages').where('id','=', dataReq.urban_village_id).first();
             let dataSubDistrict = await knex('sub_districts').where('id','=', dataReq.sub_district_id).first();
@@ -1372,9 +1363,6 @@ router.patch('/update/roleReq/ketua', isAuthenticated, async (req, res) => {
             }).where('id', '=', idRoleReq);
             return res.status(200).json("Berhasil menolak !");
         }
-
-
-
     } catch (error) {
         console.error(error);
         return res.status(500).json('ERROR');
