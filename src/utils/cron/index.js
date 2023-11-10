@@ -1,11 +1,13 @@
 const cron = require('node-cron');
 const knex = require('../../database');
 const moment = require('moment-timezone');
+const { randomVarchar } = require('../strings');
 moment.tz('Asia/Jakarta');
 
 const cronTaskDaily = async () => {
     publishLotteryClubPeriodDetail();
     lotreLotteryCLubPeriodDetail();
+    changeNeighbourhoodHead();
 }
 
 const publishLotteryClubPeriodDetail = async () => {
@@ -204,36 +206,74 @@ const lotreLotteryCLubPeriodDetail = async () => {
     }
 }
 
-const changeNeighborhoodHead = async () => {
+const changeNeighbourhoodHead = async () => {
     let today = moment();
-    
+
     let areasTenureEnded = await knex({ a: 'areas' })
-        .select('id', 'area_code', 'tenure_end_at', 'periode',
+        .select('id', 'area_code', 'tenure_end_at', 'periode', 'ketua_id',
+            'wakil_ketua_id', 'wakil_ketua_code', 'sekretaris_id',
+            'sekretaris_code', 'bendahara_id', 'bendahara_code', 'tenure_end_at',
             knex({ nhc: 'neighbourhood_head_candidates' })
-            .select('user_id')
-            .where('nhc.area_id', '=', knex.ref('a.id'))
-            .andWhere('nhc.periode', '=', knex.ref('a.periode'))
-            .andWhere('nhc.total_vote_obtained', '=', (sub) => {
-                sub.max('nhc2.total_vote_obtained')
-                .from({nhc2: 'neighbourhood_head_candidates'})
+                .select('user_id')
                 .where('nhc.area_id', '=', knex.ref('a.id'))
                 .andWhere('nhc.periode', '=', knex.ref('a.periode'))
-            })
-            .first()
-            .as("winner_id")
+                .andWhere('nhc.total_vote_obtained', '=', (sub) => {
+                    sub.max('nhc2.total_vote_obtained')
+                        .from({ nhc2: 'neighbourhood_head_candidates' })
+                        .where('nhc.area_id', '=', knex.ref('a.id'))
+                        .andWhere('nhc.periode', '=', knex.ref('a.periode'))
+                })
+                .first()
+                .as("winner_id")
         )
         .where('tenure_end_at', "<", today.format('yyyy-MM-DD'));
-    console.log(areasTenureEnded);
+    // Ambil data yang ada pemenangnya saja
+    areasTenureEnded = areasTenureEnded.filter(a => a.winner_id);
+
+    // Loop untuk setiap area yang sudah ada pemenangnya
+    areasTenureEnded.forEach(async (area) => {
+        let { id, ketua_id, wakil_ketua_id, sekretaris_id, bendahara_id, winner_id, tenure_end_at } = area;
+        let resetIdUser = [ketua_id, wakil_ketua_id, sekretaris_id, bendahara_id].filter(id => id);
+
+        // reset user role ke warga
+        await knex('users').update({ 'user_role': 2 }).whereIn('id', resetIdUser);
+
+        // update ketua_id di area menjadi user winner.
+        // bikin kode unik lagi untuk kode sekre, bendahara, wakil
+        let wakilKetuaCode = randomVarchar(10);
+        let sekretarisCode = randomVarchar(10);
+        let bendaharaCode = randomVarchar(10);
+        // set tenure end 4 thun lagi
+        let newTenure = moment(tenure_end_at).add(4, 'years');
+        await knex('areas')
+            .update({
+                ketua_id: winner_id, periode: knex.raw('periode + 1'),
+                wakil_ketua_code: wakilKetuaCode,
+                sekretaris_code: sekretarisCode,
+                bendahara_code: bendaharaCode,
+                wakil_ketua_id: null,
+                sekretaris_id: null,
+                bendahara_id: null,
+                tenure_end_at: newTenure.format('yyyy-MM-DD')
+            })
+            .where('id', '=', id);
+
+        // update role user menjadi ketua 
+        await knex('users').update({
+            user_role: 7,
+            total_serving_as_neighbourhood_head: knex.raw('total_serving_as_neighbourhood_head + 1')
+        })
+            .where('id', '=', winner_id);
+    });
 }
 
 const runCrons = async () => {
     console.log('Menjalankan cronjobs..');
 
     // Jalankan setiap hari
-    cron.schedule('30 * * * * *', () => {
+    cron.schedule(' 0 0 * * *', () => {
         // apapun yang ada disini, akan dijalankan setiap hari.
-        // cronTaskDaily();
-        changeNeighborhoodHead();
+        cronTaskDaily();
     }, {
         scheduled: true,
         timezone: 'Asia/Jakarta'
