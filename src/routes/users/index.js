@@ -668,18 +668,13 @@ router.post('/reqUserRole', isAuthenticated,
                 return res.status(200).json(newReq);
             }
             // Req Bendahara || Sekretaris || Wakil
-            else if (
-                request_role == 4 ||
-                request_role == 5 ||
-                request_role == 6
-            ) {
+            else if (request_role == 4) {
                 // Mengecek request_code tidak kosong
                 if (stringUtils.isEmptyString(request_code)) {
                     return res.status(400).json('Data tidak valid');
                 }
 
                 // Cek request_code valid dengan suatu wilayah
-
                 let wilayah = await knex('areas')
                     .where('id', '=', user.area_id)
                     .first();
@@ -688,27 +683,24 @@ router.post('/reqUserRole', isAuthenticated,
                 }
 
                 // Mengecek role yang dipilih serta kode nya match
-                if (
-                    (request_role == 4 &&
-                        request_code != wilayah.bendara_code) ||
-                    (request_role == 5 &&
-                        request_code != wilayah.sekretaris_code) ||
-                    (request_role == 6 &&
-                        request_code != wilayah.wakil_ketua_code)
-                ) {
+                let checkRequestCode = [wilayah.bendahara_code, wilayah.sekretaris_code, wilayah.wakil_ketua_code].indexOf(request_code);
+                if (checkRequestCode == -1) {
                     return res.status(400).json('Kode tidak valid');
                 }
+                // Check Request Role itu role apa
+                let roleIds = [4, 5, 6];
 
                 // Insert ke tabel user role requests
-                await knex('user_role_requests').insert({
+                let data = {
                     requester_id: uid,
                     confirmater_role_id: wilayah.ketua_id,
                     area_id: wilayah.area_id,
                     request_code: request_code,
-                    request_role: request_role,
+                    request_role: roleIds[checkRequestCode],
                     created_at: moment().toDate(),
-                });
-                return res.status(200).json('Berhasil Requests');
+                };
+                let id = await knex('user_role_requests').insert(data);
+                return res.status(200).json({ id: id[0], ...data });
             }
             // Req jadi Ketua RT
             else if (request_role == 7) {
@@ -1030,7 +1022,7 @@ router.post('/listUserWilayah', isAuthenticated, async (req, res) => {
         let listUserWilayah = await knex('users')
             .where('area_id', '=', user.area_id)
             .orderBy([
-                { column: 'user_role', order: 'desc' }, 
+                { column: 'user_role', order: 'desc' },
                 { column: 'full_name', order: 'asc' }
             ]);
 
@@ -1064,7 +1056,7 @@ router.get('/listUserWilayah/:areaID', isAuthenticated, async (req, res) => {
         let listUserWilayah = await knex('users')
             .where('area_id', '=', areaID)
             .orderBy([
-                { column: 'user_role', order: 'desc' }, 
+                { column: 'user_role', order: 'desc' },
                 { column: 'full_name', order: 'asc' }
             ]);
 
@@ -1146,23 +1138,23 @@ router.get('/getRoleRequest/typeReqRole/ketua-rt', isAuthenticated, async (req, 
         let listDataUserReqRole = await knex('user_role_requests')
             .whereRaw(`
                 (confirmater_id != requester_id OR confirmater_id is null)`)
-            .andWhere('confirmater_role_id','=', 1)
+            .andWhere('confirmater_role_id', '=', 1)
             .andWhere('request_role', '=', 7);
 
         for (let idx = 0; idx < listDataUserReqRole.length; idx++) {
             let dataUserRequester = await knex('users').where('id', '=', listDataUserReqRole[idx].requester_id).first();
             listDataUserReqRole[idx].data_user_requester = dataUserRequester;
- 
+
             if (listDataUserReqRole[idx].urban_village_id != null) {
-                let dataUrbanVillage = await knex('urban_villages').where('id','=', listDataUserReqRole[idx].urban_village_id).first();
+                let dataUrbanVillage = await knex('urban_villages').where('id', '=', listDataUserReqRole[idx].urban_village_id).first();
                 listDataUserReqRole[idx].urban_village_id = dataUrbanVillage;
             }
-            
+
             if (listDataUserReqRole[idx].sub_district_id != null) {
-                let dataSubDistrict = await knex('sub_districts').where('id','=', listDataUserReqRole[idx].sub_district_id).first();
+                let dataSubDistrict = await knex('sub_districts').where('id', '=', listDataUserReqRole[idx].sub_district_id).first();
                 listDataUserReqRole[idx].sub_district_id = dataSubDistrict;
             }
-            
+
             if (listDataUserReqRole[idx].confirmater_id != null) {
                 let dataUserConfirmater = await knex('users').where('id', '=', listDataUserReqRole[idx].confirmater_id).first();
                 listDataUserReqRole[idx].data_user_confirmater = dataUserConfirmater;
@@ -1214,10 +1206,10 @@ router.patch('/update/roleReq/warga', isAuthenticated, async (req, res) => {
             }).where('id', '=', dataReq.requester_id);
 
 
-            let dataArea = await knex('areas').where('id','=',user.area_id).first();
+            let dataArea = await knex('areas').where('id', '=', user.area_id).first();
             await knex('areas').update({
                 'total_population': dataArea.total_population + 1
-            }).where('id','=',user.area_id);
+            }).where('id', '=', user.area_id);
             return res.status(200).json("Berhasil menerima !");
         } else {
             await knex('user_role_requests').update({
@@ -1277,11 +1269,11 @@ router.patch('/update/roleReq/ketua', isAuthenticated, async (req, res) => {
                     .orWhere('bendahara_code', '=', sekretaris_code)
                     .orWhere('bendahara_code', '=', bendahara_code)
                     .first();
-                
+
             } while (
-                dataKembar || 
-                (area_code == wakil_ketua_code) || 
-                (area_code == sekretaris_code) || 
+                dataKembar ||
+                (area_code == wakil_ketua_code) ||
+                (area_code == sekretaris_code) ||
                 (area_code == bendahara_code) ||
                 (wakil_ketua_code == sekretaris_code) ||
                 (wakil_ketua_code == bendahara_code) ||
@@ -1320,23 +1312,23 @@ router.patch('/update/roleReq/ketua', isAuthenticated, async (req, res) => {
             await knex('user_role_requests').update({
                 "confirmater_id": user.id,
                 "rejected_at": moment().toDate()
-            }).where('rt_num','=', dataReq.rt_num)
-            .andWhere('rw_num','=', dataReq.rw_num)
-            .andWhere('urban_village_id','=', dataReq.urban_village_id)
-            .andWhere('sub_district_id','=', dataReq.sub_district_id)
-            .whereNull('accepted_at')
-            .whereNull('rejected_at');
+            }).where('rt_num', '=', dataReq.rt_num)
+                .andWhere('rw_num', '=', dataReq.rw_num)
+                .andWhere('urban_village_id', '=', dataReq.urban_village_id)
+                .andWhere('sub_district_id', '=', dataReq.sub_district_id)
+                .whereNull('accepted_at')
+                .whereNull('rejected_at');
 
-            let dataUrbanVillage = await knex('urban_villages').where('id','=', dataReq.urban_village_id).first();
-            let dataSubDistrict = await knex('sub_districts').where('id','=', dataReq.sub_district_id).first();
+            let dataUrbanVillage = await knex('urban_villages').where('id', '=', dataReq.urban_village_id).first();
+            let dataSubDistrict = await knex('sub_districts').where('id', '=', dataReq.sub_district_id).first();
 
             await knex('urban_villages').update({
                 'total_population': dataUrbanVillage.total_population + 1
-            }).where('id','=', dataReq.urban_village_id);
+            }).where('id', '=', dataReq.urban_village_id);
 
             await knex('sub_districts').update({
                 'total_population': dataSubDistrict.total_population + 1
-            }).where('id','=', dataReq.sub_district_id);
+            }).where('id', '=', dataReq.sub_district_id);
 
             await knex('user_role_logs').insert({
                 'user_id': dataReq.requester_id,
@@ -1411,10 +1403,10 @@ router.get('/getCountAnggota/wilayah/:idWilayah', async (req, res) => {
 
 // === ADD USER ROLE LOG
 router.post('/role/log/add', async (req, res) => {
-    let {   user_id, 
-            before_user_role_id, 
-            after_user_role_id, 
-            notes } = req.body;
+    let { user_id,
+        before_user_role_id,
+        after_user_role_id,
+        notes } = req.body;
 
     try {
         await knex('user_role_logs')
