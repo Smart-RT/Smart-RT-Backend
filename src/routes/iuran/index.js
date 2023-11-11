@@ -351,6 +351,29 @@ router.patch('/transaction/payment/cancel', async (req, res) => {
 });
 // === END
 
+// === NONAKTIFKAN IURAN
+router.patch('/update/nonaktifkan/:billId', isAuthenticated, async (req, res) => {
+    let user = req.authenticatedUser;
+    let { billId } = req.params;
+
+    // ambil bill
+    let areaBill = await knex('area_bills').where('id', '=', billId)
+        .andWhere('status', '=', 1)
+        .andWhere('is_repeated', '=', 1)
+        .first();
+    if (!areaBill)
+        return res.status(400).json("Data tidak valid!");
+
+    // check area user dan bill sama atau tidak
+    if (areaBill.area_id != user.area_id)
+        return res.status(400).json("Data tidak valid!");
+
+    // update status jadi 0
+    await knex('area_bills').update({ status: 0 }).where('id', '=', billId);
+    return res.status(200).json('Berhasil nonaktifkan iuran');
+
+});
+// === END
 
 router.get("/kirimnotif", async (req, res) => {
     // ambil list user yang mau dikirimin notifikasi
@@ -372,7 +395,7 @@ router.get("/kirimnotif", async (req, res) => {
     }
 
     // Setelah itu, kirim notifikasi ke hapenya
-    await cloudMessaging.sendToDevice(tokens, {data: notificationPayload});
+    await cloudMessaging.sendToDevice(tokens, { data: notificationPayload });
 
     return res.status(200).json("OK");
 });
