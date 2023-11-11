@@ -1426,20 +1426,4 @@ router.post('/role/log/add', async (req, res) => {
 })
 // === END
 
-
-
-router.get('/', async (req, res) => {
-    let users = await knex('users');
-    return res.status(200).json(users);
-});
-
-router.get('/:id', async (req, res) => {
-    let user = await knex('users').where('id', '=', req.params.id).first();
-    return res.status(200).json(user);
-});
-
-router.post('/', async (req, res) => {
-    return res.status(200).json('OK');
-});
-
 module.exports = router;
