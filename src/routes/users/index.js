@@ -115,25 +115,18 @@ router.post('/login', async (req, res) => {
             .where('requester_id', '=', user.id)
             .orderBy('id', 'desc');
 
-        for (let idx = 0; idx < userRoleReq.length; idx++) {
-            if (userRoleReq[idx].request_role == 7) {
-                // Ambil data urban village dari userRoleReq.
-                let urbanVillage = await knex('urban_villages')
-                    .where('id', '=', userRoleReq[idx].urban_village_id)
-                    .first();
+        // ambil urban village dan data subdistrict dari user role request
+        userRoleReq = await Promise.all(userRoleReq.map(async (ur) => {
+            let urbanVillage = await knex('urban_villages')
+                .where('id', '=', ur.urban_village_id)
+                .first();
 
-                // Ambil data kecamatan (?) dari urbanVillage
-                let subDistrict = await knex('sub_districts')
-                    .where('id', '=', urbanVillage.kecamatan_id)
-                    .first();
-
-                userRoleReq[idx].sub_district_id = subDistrict;
-                userRoleReq[idx].urban_village_id = urbanVillage;
-                userRoleReq[idx].urban_village_id.kecamatan = {
-                    id: urbanVillage.kecamatan_id,
-                };
-            }
-        }
+            // Ambil data kecamatan (?) dari urbanVillage
+            let subDistrict = await knex('sub_districts')
+                .where('id', '=', ur.sub_district_id)
+                .first();
+            return { ...ur, urban_village_id: urbanVillage, sub_district_id: subDistrict };
+        }));
 
         payload.user_role_requests = userRoleReq;
 
@@ -1092,31 +1085,28 @@ router.get('/getRoleRequest/typeReqRole/warga/isConfirmation/:isConfirm', isAuth
         }
 
         let listDataUserReqRole;
+        let query = knex('user_role_requests')
+            .andWhere('area_id', '=', user.area_id)
+            .andWhere('request_role', '=', 3);
 
         if (isConfirm == 'yes') {
-            listDataUserReqRole = await knex('user_role_requests')
-                .whereRaw('confirmater_id != requester_id')
-                .andWhere('confirmater_id', 'IS NOT', null)
-                .andWhere('area_id', '=', user.area_id)
-                .andWhere('request_role', '=', 3);
-
-            for (let idx = 0; idx < listDataUserReqRole.length; idx++) {
-                let dataUserRequester = await knex('users').where('id', '=', listDataUserReqRole[idx].requester_id).first();
-                listDataUserReqRole[idx].data_user_requester = dataUserRequester;
-                let dataUserConfirmater = await knex('users').where('id', '=', listDataUserReqRole[idx].confirmater_id).first();
-                listDataUserReqRole[idx].data_user_confirmater = dataUserConfirmater;
-            }
-        } else {
-            listDataUserReqRole = await knex('user_role_requests')
-                .whereNull('confirmater_id')
-                .andWhere('area_id', '=', user.area_id)
-                .andWhere('request_role', '=', 3);
-
-            for (let idx = 0; idx < listDataUserReqRole.length; idx++) {
-                let dataUser = await knex('users').where('id', '=', listDataUserReqRole[idx].requester_id).first();
-                listDataUserReqRole[idx].data_user_requester = dataUser;
-            }
+            query.where('confirmater_id', '!=', 'requester_id')
+                .whereNotNull('confirmater_id');
         }
+        else {
+            query.whereNull('confirmater_id');
+        }
+        listDataUserReqRole = await query;
+        listDataUserReqRole = await Promise.all(listDataUserReqRole.map(async (ur) => {
+            let dataUserRequester = await knex('users').where('id', '=', ur.requester_id).first();
+            let dataUserConfirmater = await knex('users').where('id', '=', ur.confirmater_id).first();
+            let urbanVillage = await knex('urban_villages').where('id', '=', ur.urban_village_id).first();
+            let subDistrict = await knex('sub_districts').where('id', '=', ur.sub_district_id).first();
+            return {
+                ...ur, data_user_requester: dataUserRequester, data_user_confirmater: dataUserConfirmater,
+                urban_village_id: urbanVillage, sub_district_id: subDistrict
+            };
+        }));
 
         return res.status(200).json(listDataUserReqRole);
     } catch (error) {
@@ -1387,11 +1377,18 @@ router.get('/getRoleRequest/id/:idReqRole', async (req, res) => {
 
 // === GET LIST REQUEST JABATAN
 router.get('/getRoleRequests', isAuthenticated, async (req, res) => {
-    console.log(req.authenticatedUser);
     if (req.authenticatedUser.user_role != 7)
         return res.status(400).json("Data tidak valid!");
-
     // ambil roles yang ada diarea 
+    let requests = await knex({ urr: 'user_role_requests' })
+        .where('urr.area_id', '=', req.authenticatedUser.area_id);
+    // ambil sub_district dan urban_village.. masukin ke sub_district_id dan urban_village_id
+    requests = await Promise.all(requests.map(async (r) => {
+        let urbanVillage = await knex('urban_villages').where('id', '=', r.urban_village_id).first();
+        let subDistrict = await knex('sub_districts').where('id', '=', r.sub_district_id).first();
+        return { ...r, urban_village_id: urbanVillage, sub_district_id: subDistrict };
+    }));
+    return res.status(200).json(requests);
 });
 // === END
 
