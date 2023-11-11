@@ -690,6 +690,10 @@ router.post('/reqUserRole', isAuthenticated,
                     area_id: wilayah.id,
                     request_code: request_code,
                     request_role: roleIds[checkRequestCode],
+                    rt_num: wilayah.rt_num,
+                    rw_num: wilayah.rw_num,
+                    urban_village_id: wilayah.urban_village_id,
+                    sub_district_id: wilayah.sub_district_id,
                     created_at: moment().toDate(),
                 };
                 let id = await knex('user_role_requests').insert(data);
@@ -1216,6 +1220,66 @@ router.patch('/update/roleReq/warga', isAuthenticated, async (req, res) => {
         return res.status(500).json('ERROR');
     }
 })
+// === END
+
+// === KONFIRMASI REQ JADI PENGURUS
+router.patch('/update/roleReq/pengurus', isAuthenticated, async (req, res) => {
+    let user = req.authenticatedUser;
+    let { idRoleReq, typeConfirmation } = req.body;
+    if (user.user_role != 7) {
+        return res.status(400).json('Anda tidak memiliki privilage');
+    }
+
+    if (typeConfirmation != 'terima' && typeConfirmation != 'tolak') {
+        return res.status(400).json('Data tidak valid');
+    }
+
+    if (stringUtils.isEmptyString(idRoleReq)) {
+        return res.status(400).json('Data tidak valid');
+    }
+
+    let dataReq = await knex('user_role_requests').where('id', '=', idRoleReq).first();
+    let dataConfirm = { "confirmater_id": user.id };
+    if (typeConfirmation == 'terima') {
+        dataConfirm['accepted_at'] = moment().toDate();
+        // Update Data role user
+        await knex('users').update({
+            "sub_district_id": dataReq.sub_district_id,
+            "urban_village_id": dataReq.urban_village_id,
+            "rw_num": dataReq.rw_num,
+            "rt_num": dataReq.rt_num,
+            "area_id": dataReq.area_id,
+            "user_role": dataReq.request_role
+        }).where('id', '=', dataReq.requester_id);
+
+        // Update Area Bendarhara
+        // 4 Bendahara
+        // 5 Sekretaris
+        // 6 Wakil RT
+        let updateAreaData = {};
+        if (dataReq.request_role == 4){
+            updateAreaData['bendahara_id'] = dataReq.requester_id;
+        }
+        else if (dataReq.request_role == 5){
+            updateAreaData['sekretaris_id'] = dataReq.requester_id;
+        }
+        else if (dataReq.request_role == 6){
+            updateAreaData['wakil_ketua_id'] = dataReq.requester_id;
+        }
+        await knex('areas').update(updateAreaData).where('id', '=', dataReq.area_id);
+    }
+    else {
+        dataConfirm['accepted_at'] = moment().toDate();
+    }
+
+    // update user_role_request
+    await knex('user_role_requests').update({
+        "confirmater_id": user.id,
+        "accepted_at": moment().toDate()
+    }).where('id', '=', idRoleReq);
+    
+    return res.status(200).json(dataConfirm['accepted_at'] ? "Berhasil menerima !" : "Berhasil menolak !");
+});
 // === END
 
 // === KONFIRMASI REQ JADI KETUA
