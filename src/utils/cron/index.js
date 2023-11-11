@@ -8,6 +8,7 @@ const cronTaskDaily = async () => {
     publishLotteryClubPeriodDetail();
     lotreLotteryCLubPeriodDetail();
     changeNeighbourhoodHead();
+    generateAreaBillRepeatDetails();
 }
 
 const publishLotteryClubPeriodDetail = async () => {
@@ -267,11 +268,54 @@ const changeNeighbourhoodHead = async () => {
     });
 }
 
+const generateAreaBillRepeatDetails = async () => {
+    let today = moment();
+
+    // Cronjob iuran repeat
+    let iuranRepeats = await knex('area_bills')
+        .where('status', '=', 1)
+        .andWhere('is_repeated', '=', 1);
+    // Untuk setiap iurannya, lakukan pengecekan apakah sudah ada taguhihan bulan ini?
+    iuranRepeats.forEach(async (iuran) => {
+        let lastIuranDetail = await knex('area_bill_repeat_details')
+            .where('area_bill_id', '=', iuran.id)
+            .orderBy('month_year', 'desc')
+            .first();
+        let lastIuranDate = moment(lastIuranDetail.month_year);
+        // Check kalau sudah wayahnya
+        if (lastIuranDate.format('yyyy-MM-DD') != today.format('yyyy-MM-DD') && lastIuranDate.format('DD') == today.format('DD')) {
+            // ambil data user di area...
+            let usersInArea = await knex('users').where('area_id', '=', iuran.area_id);
+            // Masukin area_bill_repeat_details baru
+            let areaBillRepeatId = await knex('area_bill_repeat_details').insert({
+                month_year: today.format('yyyy-MM-DD'),
+                area_bill_id: iuran.id,
+                bill_amount: iuran.bill_amount,
+                payer_total: usersInArea.length,
+                payer_count: 0,
+                total_paid_amount: 0,
+            });
+            areaBillRepeatId = areaBillRepeatId[0];
+            //  Masukin area_bill_transactions baru untuk setiap user.
+            usersInArea.forEach(async (user) => {
+                await knex('area_bill_transactions').insert({
+                    area_bill_id: iuran.id,
+                    area_bill_repeat_detail_id: areaBillRepeatId,
+                    user_id: user.id,
+                    bill_amount: iuran.bill_amount,
+                    status: 0,
+                    created_at: moment().toDate()
+                });
+            });
+        }
+    });
+}
+
 const runCrons = async () => {
     console.log('Menjalankan cronjobs..');
 
     // Jalankan setiap hari
-    cron.schedule(' 0 0 * * *', () => {
+    cron.schedule('0 0 * * *', () => {
         // apapun yang ada disini, akan dijalankan setiap hari.
         cronTaskDaily();
     }, {
