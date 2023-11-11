@@ -1381,12 +1381,14 @@ router.get('/getRoleRequests', isAuthenticated, async (req, res) => {
         return res.status(400).json("Data tidak valid!");
     // ambil roles yang ada diarea 
     let requests = await knex({ urr: 'user_role_requests' })
-        .where('urr.area_id', '=', req.authenticatedUser.area_id);
+        .where('urr.area_id', '=', req.authenticatedUser.area_id)
+        .whereIn('urr.request_role', [4, 5, 6]);
     // ambil sub_district dan urban_village.. masukin ke sub_district_id dan urban_village_id
     requests = await Promise.all(requests.map(async (r) => {
+        let dataUserRequester = await knex('users').where('id', '=', r.requester_id).first();
         let urbanVillage = await knex('urban_villages').where('id', '=', r.urban_village_id).first();
         let subDistrict = await knex('sub_districts').where('id', '=', r.sub_district_id).first();
-        return { ...r, urban_village_id: urbanVillage, sub_district_id: subDistrict };
+        return { ...r, data_user_requester: dataUserRequester, urban_village_id: urbanVillage, sub_district_id: subDistrict };
     }));
     return res.status(200).json(requests);
 });
