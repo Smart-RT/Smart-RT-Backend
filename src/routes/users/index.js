@@ -694,7 +694,7 @@ router.post('/reqUserRole', isAuthenticated,
                 let data = {
                     requester_id: uid,
                     confirmater_role_id: wilayah.ketua_id,
-                    area_id: wilayah.area_id,
+                    area_id: wilayah.id,
                     request_code: request_code,
                     request_role: roleIds[checkRequestCode],
                     created_at: moment().toDate(),
@@ -1383,6 +1383,16 @@ router.get('/getRoleRequest/id/:idReqRole', async (req, res) => {
         return res.status(500).json('ERROR');
     }
 })
+// === END
+
+// === GET LIST REQUEST JABATAN
+router.get('/getRoleRequests', isAuthenticated, async (req, res) => {
+    console.log(req.authenticatedUser);
+    if (req.authenticatedUser.user_role != 7)
+        return res.status(400).json("Data tidak valid!");
+
+    // ambil roles yang ada diarea 
+});
 // === END
 
 // === GET TOTAL ANGGOTA WILAYAH (REQ AREA_ID)
