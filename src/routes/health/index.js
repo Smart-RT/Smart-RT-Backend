@@ -397,64 +397,7 @@ router.post('/healthTaskHelp', isAuthenticated, async (req, res) => {
 });
 // === END
 
-// === GET LIST HEALTH_TASK_HELPS berdasarkan STATUS
-router.get('/healthTaskHelp/list/:status/is-all/:isAll', isAuthenticated, async (req, res) => {
-    let user = req.authenticatedUser;
-    let { status, isAll } = req.params;
-    try {
-        if (stringUtils.isEmptyString(status) || (isAll != 'yes' && isAll != 'no')) {
-            return res.status(400).json('Data tidak valid');
-        }
-
-        let dataUser = await knex('users').where('id', '=', user.id).first();
-        let listHealthTaskHelp;
-
-        if (isAll == 'yes') {
-            if (status == 'telahBerlalu') {
-                listHealthTaskHelp = await knex('health_task_helps')
-                    .where(function () {
-                        this.where('status', 2)
-                            .orWhere('status', '=', -1)
-                            .orWhere('status', '=', -2)
-                    }).andWhere('area_id', '=', dataUser.area_id);
-            } else {
-                listHealthTaskHelp = await knex('health_task_helps')
-                    .where('status', '=', status)
-                    .andWhere('area_id', '=', dataUser.area_id);
-            }
-        } else {
-            if (status == 'telahBerlalu') {
-                listHealthTaskHelp = await knex('health_task_helps')
-                    .where(function () {
-                        this.where('status', 2)
-                            .orWhere('status', '=', -1)
-                            .orWhere('status', '=', -2)
-                    }).andWhere('created_by', '=', dataUser.id);
-            } else {
-                listHealthTaskHelp = await knex('health_task_helps')
-                    .where('status', '=', status)
-                    .andWhere('created_by', '=', dataUser.id);
-            }
-        }
-
-
-
-        for (let idx = 0; idx < listHealthTaskHelp.length; idx++) {
-            let dataPenyakit = await knex('user_health_reports').where('id', '=', listHealthTaskHelp[idx].user_health_report_id).first();
-            let dataDiseaseGroup = await knex('disease_groups').where('id', '=', dataPenyakit.disease_group_id).first();
-            dataPenyakit.disease_group_id = dataDiseaseGroup;
-            listHealthTaskHelp[idx].user_health_report_id = dataPenyakit;
-        }
-
-        return res.status(200).json(listHealthTaskHelp);
-    } catch (error) {
-        console.error(error);
-        return res.status(500).json('ERROR!');
-    }
-});
-// === END
-
-// === GET LIST HEALTH_TASK_HELPS berdasarkan STATUS 2
+// === GET LIST HEALTH_TASK_HELPS berdasarkan STATUS 
 router.get('/healthTaskHelp/list/is-all/:isAll', isAuthenticated, async (req, res) => {
     let user = req.authenticatedUser;
     let { isAll } = req.params;
