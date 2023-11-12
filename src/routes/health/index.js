@@ -34,11 +34,11 @@ router.post('/userReporting', isAuthenticated, async (req, res) => {
         }
 
         let dataUser = await knex('users')
-            .where('id','=',user.id)
+            .where('id', '=', user.id)
             .first();
 
         let dataArea = await knex('areas')
-            .where('id','=',dataUser.area_id)
+            .where('id', '=', dataUser.area_id)
             .first();
 
         let statusHealth = -1;
@@ -121,7 +121,7 @@ router.get('/userReported/id/:idReported', async (req, res) => {
             .where('id', '=', dataReport.confirmation_by)
             .first();
         dataReport.confirmation_by_data_user = dataUser;
-        
+
         return res.status(200).json(dataReport);
     } catch (error) {
         console.error(error);
@@ -208,8 +208,8 @@ router.get('/userReported/all/status/:status', isAuthenticated, async (req, res)
                 .whereRaw('reported_id_for != created_by')
                 .andWhere('confirmation_status', '>', -1)
                 .andWhere('area_reported_id', '=', dataUser.area_id)
-        }else{
-             listRiwayatSakit = await knex('user_health_reports')
+        } else {
+            listRiwayatSakit = await knex('user_health_reports')
                 .where('confirmation_status', '=', -1)
                 .andWhere('area_reported_id', '=', dataUser.area_id);
         }
@@ -252,20 +252,20 @@ router.patch('/userReported/confirmationAction/:status', isAuthenticated, async 
         }
 
         let dataUserHealthReport = await knex('user_health_reports')
-        .where('id', '=', idReport).first();
-    
+            .where('id', '=', idReport).first();
+
         if (!dataUserHealthReport) {
             return res.status(400).json('Data tidak valid');
         }
-        
-        let dataStatus = 1; 
+
+        let dataStatus = 1;
         let msg = "Berhasil Menolak Laporan!";
         if (status == 'tolak') {
             dataStatus = 0;
             await knex('users').update({
                 'is_health': 1,
             }).where('id', '=', dataUserHealthReport.reported_id_for);
-        }else{
+        } else {
             msg = "Berhasil Menerima Laporan!";
             await knex('users').update({
                 'is_health': 0,
@@ -333,14 +333,14 @@ router.patch('/userReported/rating', isAuthenticated, async (req, res) => {
             || stringUtils.isEmptyString(review)) {
             return res.status(400).json('Data tidak valid');
         }
-        
+
         let dataUserHealthReport = await knex('health_task_helps')
             .where('id', '=', idTaskHelp)
             .first();
-        
+
         if (!dataUserHealthReport) {
             return res.status(400).json('Data tidak valid');
-        }   
+        }
 
         await knex('health_task_helps').update({
             "rating": rating,
@@ -422,7 +422,7 @@ router.get('/healthTaskHelp/list/:status/is-all/:isAll', isAuthenticated, async 
                     .where('status', '=', status)
                     .andWhere('area_id', '=', dataUser.area_id);
             }
-        }else{
+        } else {
             if (status == 'telahBerlalu') {
                 listHealthTaskHelp = await knex('health_task_helps')
                     .where(function () {
@@ -437,7 +437,7 @@ router.get('/healthTaskHelp/list/:status/is-all/:isAll', isAuthenticated, async 
             }
         }
 
-        
+
 
         for (let idx = 0; idx < listHealthTaskHelp.length; idx++) {
             let dataPenyakit = await knex('user_health_reports').where('id', '=', listHealthTaskHelp[idx].user_health_report_id).first();
@@ -453,6 +453,35 @@ router.get('/healthTaskHelp/list/:status/is-all/:isAll', isAuthenticated, async 
     }
 });
 // === END
+
+// === GET LIST HEALTH_TASK_HELPS berdasarkan STATUS 2
+router.get('/healthTaskHelp/list/is-all/:isAll', isAuthenticated, async (req, res) => {
+    let user = req.authenticatedUser;
+    let { isAll } = req.params;
+    if (isAll != 'yes' && isAll != 'no') {
+        return res.status(400).json('Data tidak valid!');
+    }
+
+    let dataUser = await knex('users').where('id', '=', user.id).first();
+    let listHealthTaskHelp = [];
+    if (isAll == 'yes') {
+        listHealthTaskHelp = await knex('health_task_helps')
+            .where('area_id', '=', dataUser.area_id);
+    }
+    else {
+        listHealthTaskHelp = await knex('health_task_helps').
+            where('created_by', '=', dataUser.id);
+    }
+
+    // ambil detail dari setiap help
+    listHealthTaskHelp = await Promise.all(listHealthTaskHelp.map(async (hth) => {
+        let dataPenyakit = await knex('user_health_reports').where('id', '=', hth.user_health_report_id).first();
+        let dataDiseaseGroup = await knex('disease_groups').where('id', '=', dataPenyakit.disease_group_id).first();
+        dataPenyakit.disease_group_id = dataDiseaseGroup;
+        return { ...hth, user_health_report_id: dataPenyakit };
+    }));
+    return res.status(200).json(listHealthTaskHelp);
+});
 
 // === GET HEALTH_TASK_HELPS (REQ ID)
 router.get('/healthTaskHelp/:id', async (req, res) => {
@@ -513,14 +542,14 @@ router.patch('/healthTaskHelp', isAuthenticated, async (req, res) => {
                 "confirmation_at": moment().toDate(),
             }).where('id', '=', idBantuan);
             return res.status(200).json("Berhasil Menolak!");
-        }else if (status == 2) {
+        } else if (status == 2) {
             await knex('health_task_helps').update({
                 "status": status,
                 "solved_by": dataUser.id,
                 "solved_at": moment().toDate(),
             }).where('id', '=', idBantuan);
             return res.status(200).json("Berhasil Menyelesaikan!");
-        } 
+        }
 
         return res.status(200).json("Berhasil!");
     } catch (error) {
