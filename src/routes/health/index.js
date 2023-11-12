@@ -190,50 +190,31 @@ router.get('/userReported/needConfirmation/count', isAuthenticated, async (req, 
 // === END
 
 // === GET LIST LAPORAN SAKIT DARI WARGA BERDASARKAN STATUS
-router.get('/userReported/all/status/:status', isAuthenticated, async (req, res) => {
+router.get('/userReported/all/status', isAuthenticated, async (req, res) => {
     let user = req.authenticatedUser;
-    let { status } = req.params;
     try {
-        if (status != "telahDikonfirmasi" && status != "belumDikonfirmasi") {
-            return res.status(400).json('Data tidak valid');
-        }
+        let dataUser = await knex('users').where('id', '=', user.id).first();
+        let laporanSakit = await knex('user_health_reports')
+            .where('area_reported_id', '=', dataUser.area_id)
+            .andWhere('reported_id_for', '!=', knex.ref('created_by'));
+        // ambil detail data untuk setiap laporan sakit
+        laporanSakit = await Promise.all(laporanSakit.map(async (ls) => {
+            let diseaseGroup = await knex('disease_groups')
+                .where('id', '=', ls.disease_group_id).first();
+            let dataUserSakit = await knex('users')
+                .where('id', '=', ls.reported_id_for).first();
+            let laporanCreatedBy = await knex('users')
+                .where('id', '=', ls.created_by).first();
+            let laporanConfirmedBy = await knex('users')
+                .where('id', '=', ls.confirmation_by).first();
+            return {
+                ...ls, disease_group_id: diseaseGroup, reported_data_user: dataUserSakit,
+                created_by_data_user: laporanCreatedBy, confirmation_by_data_user: laporanConfirmedBy
+            };
+        }));
 
-        let dataUser = await knex('users')
-            .where('id', '=', user.id)
-            .first();
+        return res.status(200).json(laporanSakit);
 
-        let listRiwayatSakit;
-        if (status == "telahDikonfirmasi") {
-            listRiwayatSakit = await knex('user_health_reports')
-                .whereRaw('reported_id_for != created_by')
-                .andWhere('confirmation_status', '>', -1)
-                .andWhere('area_reported_id', '=', dataUser.area_id)
-        } else {
-            listRiwayatSakit = await knex('user_health_reports')
-                .where('confirmation_status', '=', -1)
-                .andWhere('area_reported_id', '=', dataUser.area_id);
-        }
-
-        for (let idx = 0; idx < listRiwayatSakit.length; idx++) {
-            let dataDiseaseGroup = await knex('disease_groups')
-                .where('id', '=', listRiwayatSakit[idx].disease_group_id)
-                .first();
-            listRiwayatSakit[idx].disease_group_id = dataDiseaseGroup;
-            let dataUser = await knex('users')
-                .where('id', '=', listRiwayatSakit[idx].reported_id_for)
-                .first();
-            listRiwayatSakit[idx].reported_data_user = dataUser;
-            dataUser = await knex('users')
-                .where('id', '=', listRiwayatSakit[idx].created_by)
-                .first();
-            listRiwayatSakit[idx].created_by_data_user = dataUser;
-            dataUser = await knex('users')
-                .where('id', '=', listRiwayatSakit[idx].confirmation_by)
-                .first();
-            listRiwayatSakit[idx].confirmation_by_data_user = dataUser;
-        }
-
-        return res.status(200).json(listRiwayatSakit);
     } catch (error) {
         console.error(error);
         return res.status(500).json('ERROR!');
