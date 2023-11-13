@@ -18,6 +18,7 @@ const routerVote = require('./vote');
 const routerSetting = require('./setting');
 const routerSubscribePro = require('./subscribe_pro');
 const routerIuran = require('./iuran');
+const routerNotification = require('./notification');
 
 router.use('/users', routerUser);
 router.use('/addresses', routerAddress);
@@ -35,6 +36,7 @@ router.use('/vote', routerVote);
 router.use('/setting', routerSetting);
 router.use('/subscribe-pro', routerSubscribePro);
 router.use('/iuran', routerIuran);
+router.use('/notifications', routerNotification);
 router.get('/', (req, res) => {
     return res.status(200).json('OK!');
 });
