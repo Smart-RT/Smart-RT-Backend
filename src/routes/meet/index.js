@@ -13,6 +13,7 @@ const {
 } = require('../../middleware/upload');
 const path = require('path');
 const fs = require('fs-extra');
+const { sendNotification } = require('../../utils/notification');
 
 // === GET LIST MEET
 router.get('/get/status/:status', isAuthenticated, async (req, res) => {
@@ -34,7 +35,7 @@ router.get('/get/status/:status', isAuthenticated, async (req, res) => {
                     .where('status', '=', '1')
                     .andWhere('meet_datetime', '>=', dateTimeNow)
                     .whereRaw(`(area_id = ${user.area_id} || created_by = ${user.id})`);
-            } 
+            }
             // else if (user.user_role == 5 || user.user_role == 6) {
             //     listData = await knex('meetings')
             //         .where('status', '=', '1')
@@ -54,7 +55,7 @@ router.get('/get/status/:status', isAuthenticated, async (req, res) => {
                     .where('status', '=', '0')
                     .andWhere('meet_datetime', '>=', dateTimeNow)
                     .whereRaw(`(area_id = ${user.area_id} || created_by = ${user.id})`);
-            } 
+            }
             // else if (user.user_role == 5 || user.user_role == 6) {
             //     listData = await knex('meetings')
             //         .where('status', '=', '0')
@@ -73,7 +74,7 @@ router.get('/get/status/:status', isAuthenticated, async (req, res) => {
                     .where('status', '>=', '0')
                     .andWhere('meet_datetime', '<', dateTimeNow)
                     .whereRaw(`(area_id = ${user.area_id} || created_by = ${user.id})`);
-            } 
+            }
             // else if (user.user_role == 5 || user.user_role == 6) {
             //     listData = await knex('meetings')
             //         .where('status', '=', '1')
@@ -91,7 +92,7 @@ router.get('/get/status/:status', isAuthenticated, async (req, res) => {
                 listData = await knex('meetings')
                     .where('status', '<', '0')
                     .whereRaw(`(area_id = ${user.area_id} || created_by = ${user.id})`);
-            } 
+            }
             // else if (user.user_role == 5 || user.user_role == 6) {
             //     listData = await knex('meetings')
             //         .where('status', '<', '0')
@@ -424,6 +425,9 @@ router.post('/add', isAuthenticated,
                 "status": 0
             });
 
+            // kirim notifikasi ke ketua
+            await sendNotification(dataArea.ketua_id, 'janji_temu', 'Janji Temu Baru', `Terdapat janji temu baru yang dibuat oleh ${user.full_name} dengan judul ${title}`);
+
             let filePath = path.join(
                 __dirname,
                 '..',
@@ -514,12 +518,16 @@ router.patch('/cancel', isAuthenticated, async (req, res) => {
             return res.status(400).json('Data tidak valid');
         }
 
+        let dataArea = await knex('areas').where('id', '=', dataJanjiTemu.area_id).first();
+
         if (stringUtils.isEmptyString(confirmation_notes)) {
             await knex('meetings').update({
                 "status": -2,
                 "confirmated_by": user.id,
                 "confirmated_at": moment().toDate(),
             }).where('id', '=', meet_id);
+            await sendNotification(dataArea.ketua_id, 'janji_temu',
+                'Janji Temu Dibatalkan', `Janji temu anda yang dengan judul ${dataJanjiTemu.title} dibatalkan oleh ${user.full_name} (Pemohon)`);
         } else {
             await knex('meetings').update({
                 "status": -2,
@@ -527,6 +535,8 @@ router.patch('/cancel', isAuthenticated, async (req, res) => {
                 "confirmated_at": moment().toDate(),
                 "confirmation_notes": confirmation_notes,
             }).where('id', '=', meet_id);
+            await sendNotification(dataArea.ketua_id, 'janji_temu',
+                'Janji Temu Dibatalkan', `Janji temu anda yang dengan judul ${dataJanjiTemu.title} dibatalkan oleh ${user.full_name} (Pemohon) dengan alasan ${confirmation_notes}`);
         }
 
         return res.status(200).json("Berhasil membatalkan janji temu !");
@@ -561,6 +571,8 @@ router.patch('/decline', isAuthenticated, async (req, res) => {
             "confirmated_notes": confirmation_notes,
         }).where('id', '=', meet_id);
 
+        // kirim notifikasi ke ketua
+        await sendNotification(dataJanjiTemu.created_by, 'janji_temu', 'Janji Temu Ditolak', `Janji temu anda yang dengan judul ${dataJanjiTemu.title} ditolak oleh ${user.full_name}`);
 
         return res.status(200).json("Berhasil menolak janji temu !");
     } catch (error) {
@@ -593,7 +605,7 @@ router.patch('/accept', isAuthenticated, async (req, res) => {
             "confirmated_at": moment().toDate(),
         }).where('id', '=', meet_id);
 
-
+        await sendNotification(dataJanjiTemu.created_by, 'janji_temu', 'Janji Temu Diterima', `Janji temu anda yang dengan judul ${dataJanjiTemu.title} diterima oleh ${user.full_name}`);
         return res.status(200).json("Berhasil menerima janji temu !");
     } catch (error) {
         console.error(error);
@@ -624,6 +636,7 @@ router.patch('/change-date', isAuthenticated, async (req, res) => {
             "meet_datetime_negotiated_by": user.id
         }).where('id', '=', meet_id);
 
+        await sendNotification(dataJanjiTemu.created_by, 'janji_temu', 'Perubahan Jadwal Janji Temu', `Terdapat permohonan perubahan jadwal janji temu anda dengan judul: ${dataJanjiTemu.title}`);
 
         return res.status(200).json("Berhasil mengajukan pergantian jadwal !");
     } catch (error) {
@@ -650,7 +663,7 @@ router.patch('/change-respondent', isAuthenticated, async (req, res) => {
             return res.status(400).json('Data tidak valid');
         }
 
-        let dataUser = await knex('users').where('id','=', new_respondent_id).first();
+        let dataUser = await knex('users').where('id', '=', new_respondent_id).first();
         if (!dataUser) {
             return res.status(400).json('Data tidak valid');
         }
@@ -661,6 +674,7 @@ router.patch('/change-respondent', isAuthenticated, async (req, res) => {
             "change_respondent_at": moment().toDate()
         }).where('id', '=', meet_id);
 
+        await sendNotification(dataJanjiTemu.created_by, 'janji_temu', 'Perubahan Responden Janji Temu', `Terdapat perubahan responden pada janji temu anda dengan judul ${dataJanjiTemu.title}`);
 
         return res.status(200).json("Berhasil mengganti responden !");
     } catch (error) {
