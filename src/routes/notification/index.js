@@ -6,7 +6,7 @@ const { sendNotification } = require('../../utils/notification');
 
 router.get('/get/all', isAuthenticated, async (req, res) => {
     let user = req.authenticatedUser;
-    let notifikasi = await knex('notifications').where('user_id', '=', user.id);
+    let notifikasi = await knex('notifications').where('user_id', '=', user.id).orderBy('id','desc');
     let jumlahUnead = notifikasi.filter((n) => n.is_read == 0).length;
     return res.status(200).json({ total_unread: jumlahUnead, notifications: notifikasi });
 });
