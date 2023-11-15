@@ -13,6 +13,7 @@ const {
 } = require('../../middleware/upload');
 const path = require('path');
 const fs = require('fs-extra');
+const { sendNotification } = require('../../utils/notification');
 
 // === GET LIST ADMINISTRATION (REQ STATUS)
 router.get('/area/:idArea/status/:idStatus', isAuthenticated, async (req, res) => {
@@ -153,7 +154,7 @@ router.post('/add/permohonan-surat-pengantar', isAuthenticated,
                 ) {
                     return res.status(400).json('Data tidak valid 1');
                 }
-                
+
                 let dataArea = await knex('areas')
                     .where('id', '=', user.area_id)
                     .first();
@@ -348,7 +349,7 @@ router.post('/add/permohonan-surat-pengantar', isAuthenticated,
                         "created_at": moment().toDate(),
                         "creator_notes": creator_notes
                     });
-                }else {
+                } else {
                     newID = await knex('administrations').insert({
                         "administration_type_id": administration_type_id,
                         "area_id": user.area_id,
@@ -403,6 +404,19 @@ router.post('/add/permohonan-surat-pengantar', isAuthenticated,
                 );
             }
 
+            let adminType = {
+                1: "Surat Pengantar Pembuatan SKCK",
+                2: "Surat Pengantar Pembuatan KK",
+                3: "Surat Pengantar Pembuatan KTP",
+                4: "Surat Pengantar Pindah Domisili",
+                5: "Surat Pengantar Kematian",
+                6: "Surat Pengantar Kelahiran",
+                7: "Surat Pengantar Keterangan Tidak Mampu",
+                8: "Surat Pengantar Lainnya (Custom)",
+            }
+            let areaData = await knex('areas').where('id', '=', user.area_id).first();
+            await sendNotification(areaData.ketua_id, 'administrasi', 'Request Administrasi Baru', `Terdapat request adminsitrasi baru dengan tipe ${adminType[administration_type_id]} yang dibuat oleh ${user.full_name}`);
+
             return res.status(200).json("Berhasil membuat permohonan Surat Keterangan !");
         } catch (error) {
             console.error(error);
@@ -446,6 +460,7 @@ router.patch('/update/permohonan-surat-pengantar', isAuthenticated,
                     "confirmation_rejected_reason": confirmation_rejected_reason,
                     "confirmation_at": moment().toDate(),
                 }).where('id', '=', dataAdm.id);
+                await sendNotification(dataAdm.creator_id, 'administrasi', 'Request Administrasi Ditolak', `Request administrasi anda ditolak oleh ${user.full_name} dengan alasan ${confirmation_rejected_reason}`);
             } else {
                 let { data_letter_num } = req.body;
                 if (stringUtils.isEmptyString(data_letter_num)) {
@@ -462,6 +477,7 @@ router.patch('/update/permohonan-surat-pengantar', isAuthenticated,
                     "data_letter_num": data_letter_num,
                     "confirmation_at": moment().toDate(),
                 }).where('id', '=', dataAdm.id);
+                await sendNotification(dataAdm.creator_id, 'administrasi', 'Request Administrasi Diterima', `Request administrasi anda diterima oleh ${user.full_name}`);
 
                 let filePathDestination = path.join(
                     __dirname,
