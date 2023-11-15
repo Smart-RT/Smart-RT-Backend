@@ -2,6 +2,7 @@ const cron = require('node-cron');
 const knex = require('../../database');
 const moment = require('moment-timezone');
 const { randomVarchar } = require('../strings');
+const { sendNotification } = require('../notification');
 moment.tz('Asia/Jakarta');
 
 const cronTaskDaily = async () => {
@@ -306,6 +307,7 @@ const generateAreaBillRepeatDetails = async () => {
                     status: 0,
                     created_at: moment().toDate()
                 });
+                await sendNotification(user.id, 'iuran', 'Tagihan Iuran', `Terdapat tagihan iuran baru dengan nominal ${iuran.bill_amount}`);
             });
         }
     });
