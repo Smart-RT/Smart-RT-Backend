@@ -7,6 +7,7 @@ const { stringUtils, tokenUtils } = require('../../utils');
 const { read } = require('fs-extra');
 const { default: axios } = require('axios');
 const { randomVarchar } = require('../../utils/strings');
+const { sendNotification } = require('../../utils/notification');
 
 // === GET DISEASE GROUP
 router.get('/diseaseGroup', async (req, res) => {
@@ -63,6 +64,11 @@ router.post('/userReporting', isAuthenticated, async (req, res) => {
             "created_at": moment().toDate(),
             "confirmation_status": confirmation_status
         });
+
+        if (confirmation_status == -1) {
+            let userReported = await knex('users').select('full_name').where('id', '=', reported_id_for).first()
+            await sendNotification(dataArea.ketua_id, 'kesehatan', 'Laporan Kesehatan Baru', `Terdapat laporan kesehatan baru yang dilaporkan oleh ${user.full_name} terhadap ${userReported.full_name}`);
+        }
 
         await knex('users').update({
             "is_health": statusHealth
@@ -369,6 +375,8 @@ router.post('/healthTaskHelp', isAuthenticated, async (req, res) => {
             "created_by": dataUser.id
         });
 
+        let dataArea = await knex('areas').where('id', '=', dataUser.area_id).first();
+        await sendNotification(dataArea.ketua_id, 'kesehatan', 'Request Bantuan Baru', `Terdapat request bantuan baru yang direquest oleh ${dataUser.full_name}`);
 
         return res.status(200).json("Berhasil Meminta Bantuan!");
     } catch (error) {
@@ -446,12 +454,20 @@ router.patch('/healthTaskHelp', isAuthenticated, async (req, res) => {
         }
 
         let dataUser = await knex('users').where('id', '=', user.id).first();
+        let dataBantuan = await knex('health_task_helps').where('id', '=', idBantuan).first();
+        if (!dataBantuan) return res.status(400).json('Data tidak valid!');
+
         if (status == -2 || status == 1) {
             await knex('health_task_helps').update({
                 "status": status,
                 "confirmation_by": dataUser.id,
                 "confirmation_at": moment().toDate(),
             }).where('id', '=', idBantuan);
+
+            if (status == 1) {
+                await sendNotification(dataBantuan.created_by, 'kesehatan', 'Request Bantuan Diterima', `Request bantuan anda diterima oleh ${dataUser.full_name}`);
+            }
+
             return res.status(200).json("Berhasil Membatalkan");
         } else if (status == -1) {
             let { alasanPenolakan } = req.body;
@@ -465,6 +481,7 @@ router.patch('/healthTaskHelp', isAuthenticated, async (req, res) => {
                 "confirmation_by": dataUser.id,
                 "confirmation_at": moment().toDate(),
             }).where('id', '=', idBantuan);
+            await sendNotification(dataBantuan.created_by, 'kesehatan', 'Request Bantuan Ditolak', `Request bantuan anda ditolak oleh ${dataUser.full_name}`);
             return res.status(200).json("Berhasil Menolak!");
         } else if (status == 2) {
             await knex('health_task_helps').update({
@@ -472,6 +489,7 @@ router.patch('/healthTaskHelp', isAuthenticated, async (req, res) => {
                 "solved_by": dataUser.id,
                 "solved_at": moment().toDate(),
             }).where('id', '=', idBantuan);
+            await sendNotification(dataBantuan.created_by, 'kesehatan', 'Request Bantuan Selesai', `Request bantuan anda diselesaikan oleh ${dataUser.full_name}`);
             return res.status(200).json("Berhasil Menyelesaikan!");
         }
 
