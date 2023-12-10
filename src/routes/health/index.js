@@ -531,8 +531,75 @@ router.get('/getDataPatientGroupingByDiseaseGroup/area/:idArea/monthYear/:monthY
         console.error(error);
         return res.status(500).json('ERROR');
     }
-})
+});
 // === END
 
+// === GET DATA LAPORAN ADMIN
+router.get('/healthreport/:monthYear', isAuthenticated, async (req, res) => {
+    let user = req.authenticatedUser;
+    let { monthYear } = req.params;
+    // if not admin
+    if (user.user_role != 1) return res.status(400).json('Anda tidak memiliki privilage');
+    if (!moment(monthYear, 'MM-YYYY').isValid()) return res.status(400).json('Format tanggal tidak sesuai');
+
+    let data = knex.select(
+        { id: 'uhr.id' },
+        'uhr.area_reported_id',
+        { disease_id: 'dg.id' },
+        { disease_name: 'dg.name' },
+        'uhr.disease_notes',
+        'uhr.confirmation_status',
+        { area_id: 'a.id' },
+        { sub_district_name: 'sd.name' },
+        'sd.wilayah',
+        'uhr.created_at'
+    )
+        .from({ uhr: 'user_health_reports' })
+        .join({ dg: 'disease_groups' }, 'dg.id', 'uhr.disease_group_id')
+        .join({ a: 'areas' }, 'a.id', 'uhr.area_reported_id')
+        .join({ sd: 'sub_districts' }, 'sd.id', 'a.sub_district_id')
+        .where('uhr.confirmation_status', '=', 1)
+        .whereRaw(`DATE_FORMAT(uhr.created_at, '%m-%Y') = '${monthYear}'`);
+    data = await data;
+
+    let wilayahSurabaya = ['Surabaya Pusat', 'Surabaya Timur', 'Surabaya Barat', 'Surabaya Utara', 'Surabaya Selatan'];
+    data = data.map((d) => {
+        return { ...d, wilayah: wilayahSurabaya[d.wilayah] }
+    });
+
+    let penyakits = await knex('disease_groups');
+    let dataPenyakit = penyakits.map(p => {
+        return {
+            nama: p.name,
+            jumlah: data.filter(f => f.disease_id == p.id).length
+        }
+    });
+
+    let dataWilayah = wilayahSurabaya.map((w) => {
+        return {
+            nama: w,
+            jumlah: data.filter(f => f.wilayah == w).length
+        };
+    });
+
+    let dataPenyakitPerWilayah = wilayahSurabaya.map((w) => {
+        let dataSakit = penyakits.map((p) => {
+            return {
+                nama: p.name,
+                jumlah: data.filter((f) => f.disease_id == p.id && f.wilayah == w).length
+            };
+        });
+        return { wilayah: w, dataJumlahPenyakit: dataSakit };
+    });
+
+    let dataLaporan = {
+        dataJumlahWilayah: dataWilayah,
+        dataJumlahPenyakit: dataPenyakit,
+        dataPenyakitPerWilayah,
+    }
+
+    return res.status(200).json(dataLaporan);
+});
+// === END
 
 module.exports = router;
