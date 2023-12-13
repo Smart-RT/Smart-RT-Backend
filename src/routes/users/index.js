@@ -1079,6 +1079,63 @@ router.get('/listUserWilayah/:areaID', isAuthenticated, async (req, res) => {
 });
 // === END
 
+// === LIST WARGA
+router.get('/listWarga', isAuthenticated, async (req, res) => {
+    let user = req.authenticatedUser;
+    if (![4, 5, 6, 7].includes(user.user_role)) return res.status(400).json('Anda tidak memiliki privilage');
+
+    let dataWarga = await knex.select(
+        'u.id',
+        'u.nik',
+        'u.kk_num',
+        'u.full_name',
+        'u.address',
+        'u.gender',
+        'u.born_at',
+        'u.born_date',
+        'u.religion',
+        'u.status_perkawinan',
+        'u.profession',
+        'u.nationality',
+        'u.phone',
+        'u.user_role',
+        'u.area_id',
+        'u.is_lottery_club_member',
+        'u.photo_profile_img',
+        'u.is_health',
+        'u.total_serving_as_neighbourhood_head',
+        'u.is_committe',
+        {
+            total_task: (sub) => {
+                return sub.count('*')
+                    .from({ etd: 'event_task_details' })
+                    .where('etd.status', '=', 1)
+                    .andWhere('etd.user_id', '=', knex.ref('u.id'));
+            }
+        },
+        {
+            task_rating: (sub) => {
+                return sub.avg('etdr.rating')
+                    .from({ etdr: 'event_task_detail_ratings' })
+                    .andWhere('etdr.rated_for', '=', knex.ref('u.id'));
+            }
+        }
+    )
+        .from({ u: 'users' })
+        .where('u.area_id', '=', user.area_id)
+        .orderBy([
+            { column: 'user_role', order: 'desc' },
+            { column: 'full_name', order: 'asc' }
+        ]);
+
+    dataWarga = dataWarga.map(d => {
+        return { ...d, task_rating: Math.round(d.task_rating) };
+    });
+
+    return res.status(200).json(dataWarga);
+});
+// === END
+
 // === GET USER ROLE REQ JADI WARGA
 router.get('/getRoleRequest/typeReqRole/warga/isConfirmation/:isConfirm', isAuthenticated, async (req, res) => {
     let user = req.authenticatedUser;
@@ -1257,13 +1314,13 @@ router.patch('/update/roleReq/pengurus', isAuthenticated, async (req, res) => {
         // 5 Sekretaris
         // 6 Wakil RT
         let updateAreaData = {};
-        if (dataReq.request_role == 4){
+        if (dataReq.request_role == 4) {
             updateAreaData['bendahara_id'] = dataReq.requester_id;
         }
-        else if (dataReq.request_role == 5){
+        else if (dataReq.request_role == 5) {
             updateAreaData['sekretaris_id'] = dataReq.requester_id;
         }
-        else if (dataReq.request_role == 6){
+        else if (dataReq.request_role == 6) {
             updateAreaData['wakil_ketua_id'] = dataReq.requester_id;
         }
         await knex('areas').update(updateAreaData).where('id', '=', dataReq.area_id);
@@ -1277,7 +1334,7 @@ router.patch('/update/roleReq/pengurus', isAuthenticated, async (req, res) => {
         "confirmater_id": user.id,
         "accepted_at": moment().toDate()
     }).where('id', '=', idRoleReq);
-    
+
     return res.status(200).json(dataConfirm['accepted_at'] ? "Berhasil menerima !" : "Berhasil menolak !");
 });
 // === END
