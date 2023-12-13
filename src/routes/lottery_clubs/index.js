@@ -880,6 +880,7 @@ router.patch('/periode/pertemuan/start', isAuthenticated, async (req, res) => {
             status: 'Unpublished',
             is_offline_meet: 0,
             meet_date: nextDate,
+            pertemuan_ke: dataPeriod.meet_ctr +1,
             created_at: moment().toDate(),
             created_by: user.id,
         });
