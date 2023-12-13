@@ -540,6 +540,74 @@ router.get('/get/all', isAuthenticated, async (req, res) => {
 });
 // === 
 
+// === GET LIST EVENT BY MONTH YEAR
+router.get('/get/filtered/yearMonth/:yearMonth', isAuthenticated, async (req, res) => {
+    let user = req.authenticatedUser;
+    let { yearMonth } = req.params;
+    try {
+
+        let dataListEvent = await knex('events').where('area_id', '=', user.area_id)
+            .whereRaw(`
+            (
+                DATE_FORMAT(event_date_start_at,"%Y-%m") = '${yearMonth}' 
+            )`)
+            .andWhere('status', '>=', 0);
+
+        for (let idx = 0; idx < dataListEvent.length; idx++) {
+            let dataCreatedBy = await knex('users').where('id', '=', dataListEvent[idx].created_by).first();
+            delete dataCreatedBy.created_by;
+            delete dataCreatedBy.created_at;
+            delete dataCreatedBy.refresh_token;
+            delete dataCreatedBy.total_serving_as_neighbourhood_head;
+            delete dataCreatedBy.sign_img;
+            delete dataCreatedBy.password;
+            delete dataCreatedBy.nik;
+            delete dataCreatedBy.kk_num;
+            delete dataCreatedBy.born_at;
+            delete dataCreatedBy.born_date;
+            delete dataCreatedBy.religion;
+            delete dataCreatedBy.status_perkawinan;
+            delete dataCreatedBy.profession;
+            delete dataCreatedBy.nationality;
+            delete dataCreatedBy.is_lottery_club_member;
+            dataListEvent[idx].created_by = dataCreatedBy;
+
+            let dataListTask = await knex('event_tasks').where('event_id', '=', dataListEvent[idx].id);
+            for (let idx2 = 0; idx2 < dataListTask.length; idx2++) {
+                let dataListTaskDetails = await knex('event_task_details').where('task_id', '=', dataListTask[idx2].id);
+
+                for (let idx3 = 0; idx3 < dataListTaskDetails.length; idx3++) {
+                    let dataUser = await knex('users').where('id', '=', dataListTaskDetails[idx3].user_id).first();
+                    delete dataUser.created_by;
+                    delete dataUser.created_at;
+                    delete dataUser.refresh_token;
+                    delete dataUser.total_serving_as_neighbourhood_head;
+                    delete dataUser.sign_img;
+                    delete dataUser.password;
+                    delete dataUser.nik;
+                    delete dataUser.kk_num;
+                    delete dataUser.born_at;
+                    delete dataUser.born_date;
+                    delete dataUser.religion;
+                    delete dataUser.status_perkawinan;
+                    delete dataUser.profession;
+                    delete dataUser.nationality;
+                    delete dataUser.is_lottery_club_member;
+                    dataListTaskDetails[idx3].dataUser = dataUser;
+                }
+                dataListTask[idx2].listPetugas = dataListTaskDetails;
+            }
+            dataListEvent[idx].tasks = dataListTask;
+        }
+
+        return res.status(200).json(dataListEvent);
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json('ERROR');
+    }
+});
+// === 
+
 // === GET EVENT
 router.get('/get/id-event/:idEvent', isAuthenticated, async (req, res) => {
     let { idEvent } = req.params;
