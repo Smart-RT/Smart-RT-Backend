@@ -28,7 +28,7 @@ router.post('/add', isAuthenticated, async (req, res) => {
 
         await knex('areas').update({
             'is_subscribe_pro': 1
-        }).where('id','=',user.area_id);
+        }).where('id', '=', user.area_id);
 
 
         return res.status(200).json('Berhasil mendaftar!');
@@ -42,12 +42,12 @@ router.post('/add', isAuthenticated, async (req, res) => {
 // === GET SUBSCRIBE PRO BY AREA
 router.get('/get/by/area/:idArea', isAuthenticated, async (req, res) => {
     let user = req.authenticatedUser;
-    let { idArea } = req.params; 
+    let { idArea } = req.params;
     try {
         let dataProSubscribe = await knex('pro_subscribes')
             .where('area_id', '=', idArea).first();
 
-        let dataCreatedBy = await knex('users').where('id','=',dataProSubscribe.created_by).first();
+        let dataCreatedBy = await knex('users').where('id', '=', dataProSubscribe.created_by).first();
         delete dataCreatedBy.created_by;
         delete dataCreatedBy.created_at;
         delete dataCreatedBy.refresh_token;
@@ -65,7 +65,7 @@ router.get('/get/by/area/:idArea', isAuthenticated, async (req, res) => {
         delete dataCreatedBy.is_lottery_club_member;
 
         dataProSubscribe.created_by = dataCreatedBy;
-        
+
         return res.status(200).json(dataProSubscribe);
     } catch (error) {
         console.error(error);
@@ -77,14 +77,14 @@ router.get('/get/by/area/:idArea', isAuthenticated, async (req, res) => {
 // === GET LIST SUBSCRIBE PRO BILLS BY AREA
 router.get('/bill/get-list/by/area/:idArea', isAuthenticated, async (req, res) => {
     let user = req.authenticatedUser;
-    let { idArea } = req.params; 
+    let { idArea } = req.params;
     try {
         let dataListProSubscribe = await knex('pro_subscribe_bills')
             .where('area_id', '=', idArea);
 
         for (let idx = 0; idx < dataListProSubscribe.length; idx++) {
             if (dataListProSubscribe[idx].payer_id != null) {
-                let dataUserPayer = await knex('users').where('id','=', dataListProSubscribe[idx].payer_id).first();
+                let dataUserPayer = await knex('users').where('id', '=', dataListProSubscribe[idx].payer_id).first();
                 delete dataUserPayer.created_by;
                 delete dataUserPayer.created_at;
                 delete dataUserPayer.refresh_token;
@@ -103,7 +103,7 @@ router.get('/bill/get-list/by/area/:idArea', isAuthenticated, async (req, res) =
                 dataListProSubscribe[idx].payer_id = dataUserPayer;
             }
             if (dataListProSubscribe[idx].updated_by != null) {
-                let dataUpdatedBy = await knex('users').where('id','=', dataListProSubscribe[idx].updated_by).first();
+                let dataUpdatedBy = await knex('users').where('id', '=', dataListProSubscribe[idx].updated_by).first();
                 delete dataUpdatedBy.created_by;
                 delete dataUpdatedBy.created_at;
                 delete dataUpdatedBy.refresh_token;
@@ -121,7 +121,7 @@ router.get('/bill/get-list/by/area/:idArea', isAuthenticated, async (req, res) =
                 delete dataUpdatedBy.is_lottery_club_member;
                 dataListProSubscribe[idx].updated_by = dataUpdatedBy;
             }
-            
+
         }
         return res.status(200).json(dataListProSubscribe);
     } catch (error) {
@@ -134,14 +134,14 @@ router.get('/bill/get-list/by/area/:idArea', isAuthenticated, async (req, res) =
 // === GET LIST SUBSCRIBE PRO BILLS BY PRO SUB ID
 router.get('/bill/get-list/by/pro-subscribe/:idProSubscribe', isAuthenticated, async (req, res) => {
     let user = req.authenticatedUser;
-    let { idProSubscribe } = req.params; 
+    let { idProSubscribe } = req.params;
     try {
         let dataListProSubscribe = await knex('pro_subscribe_bills')
             .where('pro_subscribe_id', '=', idProSubscribe);
 
         for (let idx = 0; idx < dataListProSubscribe.length; idx++) {
             if (dataListProSubscribe[idx].payer_id != null) {
-                let dataUserPayer = await knex('users').where('id','=', dataListProSubscribe[idx].payer_id).first();
+                let dataUserPayer = await knex('users').where('id', '=', dataListProSubscribe[idx].payer_id).first();
                 delete dataUserPayer.created_by;
                 delete dataUserPayer.created_at;
                 delete dataUserPayer.refresh_token;
@@ -160,7 +160,7 @@ router.get('/bill/get-list/by/pro-subscribe/:idProSubscribe', isAuthenticated, a
                 dataListProSubscribe[idx].payer_id = dataUserPayer;
             }
             if (dataListProSubscribe[idx].updated_by != null) {
-                let dataUpdatedBy = await knex('users').where('id','=', dataListProSubscribe[idx].updated_by).first();
+                let dataUpdatedBy = await knex('users').where('id', '=', dataListProSubscribe[idx].updated_by).first();
                 delete dataUpdatedBy.created_by;
                 delete dataUpdatedBy.created_at;
                 delete dataUpdatedBy.refresh_token;
@@ -178,7 +178,7 @@ router.get('/bill/get-list/by/pro-subscribe/:idProSubscribe', isAuthenticated, a
                 delete dataUpdatedBy.is_lottery_club_member;
                 dataListProSubscribe[idx].updated_by = dataUpdatedBy;
             }
-            
+
         }
         return res.status(200).json(dataListProSubscribe);
     } catch (error) {
@@ -191,14 +191,14 @@ router.get('/bill/get-list/by/pro-subscribe/:idProSubscribe', isAuthenticated, a
 // === GET SUBSCRIBE PRO BILLS BY ID
 router.get('/bill/get/:id', isAuthenticated, async (req, res) => {
     let user = req.authenticatedUser;
-    let { id } = req.params; 
+    let { id } = req.params;
     try {
         let dataProSubscribe = await knex('pro_subscribe_bills')
             .where('id', '=', id).first();
 
         if (dataProSubscribe) {
             if (dataProSubscribe.payer_id != null) {
-                let dataUserPayer = await knex('users').where('id','=', dataProSubscribe.payer_id).first();
+                let dataUserPayer = await knex('users').where('id', '=', dataProSubscribe.payer_id).first();
                 delete dataUserPayer.created_by;
                 delete dataUserPayer.created_at;
                 delete dataUserPayer.refresh_token;
@@ -217,7 +217,7 @@ router.get('/bill/get/:id', isAuthenticated, async (req, res) => {
                 dataProSubscribe.payer_id = dataUserPayer;
             }
             if (dataProSubscribe.updated_by != null) {
-                let dataUpdatedBy = await knex('users').where('id','=', dataProSubscribe.updated_by).first();
+                let dataUpdatedBy = await knex('users').where('id', '=', dataProSubscribe.updated_by).first();
                 delete dataUpdatedBy.created_by;
                 delete dataUpdatedBy.created_at;
                 delete dataUpdatedBy.refresh_token;
@@ -237,7 +237,7 @@ router.get('/bill/get/:id', isAuthenticated, async (req, res) => {
             }
         }
 
-        
+
         return res.status(200).json(dataProSubscribe);
     } catch (error) {
         console.error(error);
@@ -297,44 +297,44 @@ router.patch('/payment/pick-method', async (req, res) => {
         let dataBaru = await knex('pro_subscribe_bills')
             .where('id', '=', idProSubscribeBill).first();
 
-            if (dataBaru.payer_id != null) {
-                let dataUserPayer = await knex('users').where('id','=', dataBaru.payer_id).first();
-                delete dataUserPayer.created_by;
-                delete dataUserPayer.created_at;
-                delete dataUserPayer.refresh_token;
-                delete dataUserPayer.total_serving_as_neighbourhood_head;
-                delete dataUserPayer.sign_img;
-                delete dataUserPayer.password;
-                delete dataUserPayer.nik;
-                delete dataUserPayer.kk_num;
-                delete dataUserPayer.born_at;
-                delete dataUserPayer.born_date;
-                delete dataUserPayer.religion;
-                delete dataUserPayer.status_perkawinan;
-                delete dataUserPayer.profession;
-                delete dataUserPayer.nationality;
-                delete dataUserPayer.is_lottery_club_member;
-                dataBaru.payer_id = dataUserPayer;
-            }
-            if (dataBaru.updated_by != null) {
-                let dataUpdatedBy = await knex('users').where('id','=', dataBaru.updated_by).first();
-                delete dataUpdatedBy.created_by;
-                delete dataUpdatedBy.created_at;
-                delete dataUpdatedBy.refresh_token;
-                delete dataUpdatedBy.total_serving_as_neighbourhood_head;
-                delete dataUpdatedBy.sign_img;
-                delete dataUpdatedBy.password;
-                delete dataUpdatedBy.nik;
-                delete dataUpdatedBy.kk_num;
-                delete dataUpdatedBy.born_at;
-                delete dataUpdatedBy.born_date;
-                delete dataUpdatedBy.religion;
-                delete dataUpdatedBy.status_perkawinan;
-                delete dataUpdatedBy.profession;
-                delete dataUpdatedBy.nationality;
-                delete dataUpdatedBy.is_lottery_club_member;
-                dataBaru.updated_by = dataUpdatedBy;
-            }
+        if (dataBaru.payer_id != null) {
+            let dataUserPayer = await knex('users').where('id', '=', dataBaru.payer_id).first();
+            delete dataUserPayer.created_by;
+            delete dataUserPayer.created_at;
+            delete dataUserPayer.refresh_token;
+            delete dataUserPayer.total_serving_as_neighbourhood_head;
+            delete dataUserPayer.sign_img;
+            delete dataUserPayer.password;
+            delete dataUserPayer.nik;
+            delete dataUserPayer.kk_num;
+            delete dataUserPayer.born_at;
+            delete dataUserPayer.born_date;
+            delete dataUserPayer.religion;
+            delete dataUserPayer.status_perkawinan;
+            delete dataUserPayer.profession;
+            delete dataUserPayer.nationality;
+            delete dataUserPayer.is_lottery_club_member;
+            dataBaru.payer_id = dataUserPayer;
+        }
+        if (dataBaru.updated_by != null) {
+            let dataUpdatedBy = await knex('users').where('id', '=', dataBaru.updated_by).first();
+            delete dataUpdatedBy.created_by;
+            delete dataUpdatedBy.created_at;
+            delete dataUpdatedBy.refresh_token;
+            delete dataUpdatedBy.total_serving_as_neighbourhood_head;
+            delete dataUpdatedBy.sign_img;
+            delete dataUpdatedBy.password;
+            delete dataUpdatedBy.nik;
+            delete dataUpdatedBy.kk_num;
+            delete dataUpdatedBy.born_at;
+            delete dataUpdatedBy.born_date;
+            delete dataUpdatedBy.religion;
+            delete dataUpdatedBy.status_perkawinan;
+            delete dataUpdatedBy.profession;
+            delete dataUpdatedBy.nationality;
+            delete dataUpdatedBy.is_lottery_club_member;
+            dataBaru.updated_by = dataUpdatedBy;
+        }
         return res.status(200).json(dataBaru);
     } catch (error) {
         console.error(error);
@@ -371,44 +371,44 @@ router.patch('/payment/cancel', async (req, res) => {
         let dataBaru = await knex('pro_subscribe_bills')
             .where('id', '=', idProSubscribeBill).first();
 
-            if (dataBaru.payer_id != null) {
-                let dataUserPayer = await knex('users').where('id','=', dataBaru.payer_id).first();
-                delete dataUserPayer.created_by;
-                delete dataUserPayer.created_at;
-                delete dataUserPayer.refresh_token;
-                delete dataUserPayer.total_serving_as_neighbourhood_head;
-                delete dataUserPayer.sign_img;
-                delete dataUserPayer.password;
-                delete dataUserPayer.nik;
-                delete dataUserPayer.kk_num;
-                delete dataUserPayer.born_at;
-                delete dataUserPayer.born_date;
-                delete dataUserPayer.religion;
-                delete dataUserPayer.status_perkawinan;
-                delete dataUserPayer.profession;
-                delete dataUserPayer.nationality;
-                delete dataUserPayer.is_lottery_club_member;
-                dataBaru.payer_id = dataUserPayer;
-            }
-            if (dataBaru.updated_by != null) {
-                let dataUpdatedBy = await knex('users').where('id','=', dataBaru.updated_by).first();
-                delete dataUpdatedBy.created_by;
-                delete dataUpdatedBy.created_at;
-                delete dataUpdatedBy.refresh_token;
-                delete dataUpdatedBy.total_serving_as_neighbourhood_head;
-                delete dataUpdatedBy.sign_img;
-                delete dataUpdatedBy.password;
-                delete dataUpdatedBy.nik;
-                delete dataUpdatedBy.kk_num;
-                delete dataUpdatedBy.born_at;
-                delete dataUpdatedBy.born_date;
-                delete dataUpdatedBy.religion;
-                delete dataUpdatedBy.status_perkawinan;
-                delete dataUpdatedBy.profession;
-                delete dataUpdatedBy.nationality;
-                delete dataUpdatedBy.is_lottery_club_member;
-                dataBaru.updated_by = dataUpdatedBy;
-            }
+        if (dataBaru.payer_id != null) {
+            let dataUserPayer = await knex('users').where('id', '=', dataBaru.payer_id).first();
+            delete dataUserPayer.created_by;
+            delete dataUserPayer.created_at;
+            delete dataUserPayer.refresh_token;
+            delete dataUserPayer.total_serving_as_neighbourhood_head;
+            delete dataUserPayer.sign_img;
+            delete dataUserPayer.password;
+            delete dataUserPayer.nik;
+            delete dataUserPayer.kk_num;
+            delete dataUserPayer.born_at;
+            delete dataUserPayer.born_date;
+            delete dataUserPayer.religion;
+            delete dataUserPayer.status_perkawinan;
+            delete dataUserPayer.profession;
+            delete dataUserPayer.nationality;
+            delete dataUserPayer.is_lottery_club_member;
+            dataBaru.payer_id = dataUserPayer;
+        }
+        if (dataBaru.updated_by != null) {
+            let dataUpdatedBy = await knex('users').where('id', '=', dataBaru.updated_by).first();
+            delete dataUpdatedBy.created_by;
+            delete dataUpdatedBy.created_at;
+            delete dataUpdatedBy.refresh_token;
+            delete dataUpdatedBy.total_serving_as_neighbourhood_head;
+            delete dataUpdatedBy.sign_img;
+            delete dataUpdatedBy.password;
+            delete dataUpdatedBy.nik;
+            delete dataUpdatedBy.kk_num;
+            delete dataUpdatedBy.born_at;
+            delete dataUpdatedBy.born_date;
+            delete dataUpdatedBy.religion;
+            delete dataUpdatedBy.status_perkawinan;
+            delete dataUpdatedBy.profession;
+            delete dataUpdatedBy.nationality;
+            delete dataUpdatedBy.is_lottery_club_member;
+            dataBaru.updated_by = dataUpdatedBy;
+        }
         return res.status(200).json(dataBaru);
     } catch (error) {
         console.error(error);
@@ -417,7 +417,57 @@ router.patch('/payment/cancel', async (req, res) => {
 });
 // === END
 
+// === LAPORAN SUBSCRIBE PRO
+router.get('/laporan', isAuthenticated, async (req, res) => {
+    let user = req.authenticatedUser;
+    if (user.user_role != 1) return res.status(400).json('Anda tidak memiliki privilege');
 
+    let dataArea = await knex('areas');
+    dataArea = await Promise.all(dataArea.map(async (a) => {
+        let sd = await knex('sub_districts').where('id', '=', a.sub_district_id).first();
+        let uv = await knex('urban_villages').where('id', '=', a.urban_village_id).first();
+        let ps = await knex('pro_subscribes').where('area_id', '=', a.id).first();
+        let lc = await knex('lottery_clubs').where('id', '=', a.lottery_club_id).first();
+        let bendahara = await knex('users').where('id', '=', a.bendahara_id).first();
+        let ketua = await knex('users').where('id', '=', a.ketua_id).first();
+        let sekretaris = await knex('users').where('id', '=', a.sekretaris_id).first();
+        let wakil_ketua = await knex('users').where('id', '=', a.wakil_ketua_id).first();
+        return {
+            ...a, data_kecamatan: sd, data_kelurahan: uv, dataSubscribe: ps, lottery_club_id: lc, bendahara_id: bendahara,
+            ketua_id: ketua,
+            sekretaris_id: sekretaris,
+            wakil_ketua_id: wakil_ketua,
+        };
+    }));
 
+    // load data pro
+    dataArea = await Promise.all(dataArea.map(async (a) => {
+        if (a.dataSubscribe) {
+            let psDibuat = await knex('users').where('id', '=', a.dataSubscribe.created_by).first();
+            a.dataSubscribe.created_by = psDibuat;
+        }
+        return a;
+    }));
+
+    let jumlahAreaProSubscribe = dataArea.filter(a => a.is_subscribe_pro == 1).length;
+    let jumlahAreaBelumPro = dataArea.length - jumlahAreaProSubscribe;
+
+    let dataProSubscribe = await knex('pro_subscribes');
+    let jumlahProBelumBayar = dataProSubscribe.filter(p => p.status == 0).length;
+    let jumlahProSudahBayar = dataProSubscribe.length - jumlahProBelumBayar;
+    let listTagihan = await knex('pro_subscribe_bills');
+
+    let dataLaporan = {
+        jumlah_area: dataArea.length,
+        jumlah_area_pro: jumlahAreaProSubscribe,
+        jumlah_area_belum_pro: jumlahAreaBelumPro,
+        jumlah_pro_belum_bayar: jumlahProBelumBayar,
+        jumlah_pro_sudah_bayar: jumlahProSudahBayar,
+        data_area: dataArea,
+        data_tagihan: listTagihan
+    }
+    return res.status(200).json(dataLaporan);
+});
+// === END
 
 module.exports = router;
