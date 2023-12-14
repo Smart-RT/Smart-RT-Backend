@@ -120,7 +120,26 @@ router.get('/get/all/by-area/:areaID', isAuthenticated, async (req, res) => {
 });
 // === END
 
-// === GET LIST TRANSAKSI WILAYAH
+// === GET TOTAL IURAN BELUM BAYAR BY USER ID
+router.get('/get/my/bills', isAuthenticated, async (req, res) => {
+    let user = req.authenticatedUser;
+    try {
+            let listAreaBillTransactions = await knex('area_bill_transactions')
+                .sum({total_tagihan:'bill_amount'})
+                .where('user_id', '=', user.id)
+                .andWhere('status', '!=', 1).first();
+                console.log(listAreaBillTransactions.total_tagihan)
+                return res.status(200).json(listAreaBillTransactions.total_tagihan??0);
+           
+            
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json('ERROR!');
+    }
+});
+// === END
+
+// === GET LIST RIWAYAT TRANSAKSI WILAYAH
 router.get('/transaksi/get/all/by-area/:areaID', isAuthenticated, async (req, res) => {
     let user = req.authenticatedUser;
     let { areaID } = req.params;
@@ -209,6 +228,211 @@ router.get('/transaksi/get/filtered/by-area/:areaID/yearMonth/:yearMonth', isAut
             }
 
         }
+        return res.status(200).json(listTransaksi);
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json('ERROR!');
+    }
+});
+// === END
+
+// === GET LIST RIWAYAT TRANSAKSI KU
+router.get('/transaksi/get/my', isAuthenticated, async (req, res) => {
+    let user = req.authenticatedUser;
+    try {
+        let listTransaksi = await knex.select('abt.*')
+                                        .from({abt: 'area_bill_transactions'})
+                                        .join({ab: 'area_bills'}, 'ab.id', 'abt.area_bill_id')
+                                        .where('abt.user_id', '=',user.id)
+                                        .andWhere('abt.status', '=', 1);
+        for (let idx = 0; idx < listTransaksi.length; idx++) {
+            delete listTransaksi[idx].updated_by;
+            if (listTransaksi[idx].user_id != null) {
+                let dataUser = await knex('users').where('id', '=', listTransaksi[idx].user_id).first();
+                delete dataUser.created_by;
+                delete dataUser.created_at;
+                delete dataUser.refresh_token;
+                delete dataUser.total_serving_as_neighbourhood_head;
+                delete dataUser.sign_img;
+                delete dataUser.password;
+                delete dataUser.nik;
+                delete dataUser.kk_num;
+                delete dataUser.born_at;
+                delete dataUser.born_date;
+                delete dataUser.religion;
+                delete dataUser.status_perkawinan;
+                delete dataUser.profession;
+                delete dataUser.nationality;
+                delete dataUser.is_lottery_club_member;
+                listTransaksi[idx].dataUser = dataUser;
+            }
+
+            if (listTransaksi[idx].area_bill_id != null) {
+                let dataAreaBill = await knex('area_bills').where('id', '=', listTransaksi[idx].area_bill_id).first();
+                delete dataAreaBill.created_by;
+                delete dataAreaBill.ended_by;
+                listTransaksi[idx].dataAreaBill = dataAreaBill;
+            }
+
+        }
+        return res.status(200).json(listTransaksi);
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json('ERROR!');
+    }
+});
+router.get('/transaksi/get/my/filtered/yearMonth/:yearMonth', isAuthenticated, async (req, res) => {
+    let user = req.authenticatedUser;
+    let { areaID, yearMonth } = req.params;
+    try {
+        let listTransaksi = await knex.select('abt.*')
+                                        .from({abt: 'area_bill_transactions'})
+                                        .join({ab: 'area_bills'}, 'ab.id', 'abt.area_bill_id')
+                                        .where('abt.user_id', '=',user.id)
+                                        .whereRaw(`
+                                            (
+                                                DATE_FORMAT(abt.updated_at,"%Y-%m") = '${yearMonth}' 
+                                            )`)
+                                        .andWhere('abt.status', '=', 1);
+        for (let idx = 0; idx < listTransaksi.length; idx++) {
+            delete listTransaksi[idx].updated_by;
+            if (listTransaksi[idx].user_id != null) {
+                let dataUser = await knex('users').where('id', '=', listTransaksi[idx].user_id).first();
+                delete dataUser.created_by;
+                delete dataUser.created_at;
+                delete dataUser.refresh_token;
+                delete dataUser.total_serving_as_neighbourhood_head;
+                delete dataUser.sign_img;
+                delete dataUser.password;
+                delete dataUser.nik;
+                delete dataUser.kk_num;
+                delete dataUser.born_at;
+                delete dataUser.born_date;
+                delete dataUser.religion;
+                delete dataUser.status_perkawinan;
+                delete dataUser.profession;
+                delete dataUser.nationality;
+                delete dataUser.is_lottery_club_member;
+                listTransaksi[idx].dataUser = dataUser;
+            }
+
+            if (listTransaksi[idx].area_bill_id != null) {
+                let dataAreaBill = await knex('area_bills').where('id', '=', listTransaksi[idx].area_bill_id).first();
+                delete dataAreaBill.created_by;
+                delete dataAreaBill.ended_by;
+                listTransaksi[idx].dataAreaBill = dataAreaBill;
+            }
+
+        }
+        return res.status(200).json(listTransaksi);
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json('ERROR!');
+    }
+});
+// === END
+
+// === GET LIST IURAN KU BELUM BAYAR
+router.get('/not-paid/get/my', isAuthenticated, async (req, res) => {
+    let user = req.authenticatedUser;
+    try {
+        let listTransaksi = await knex.select('abt.*')
+                                        .from({abt: 'area_bill_transactions'})
+                                        .join({ab: 'area_bills'}, 'ab.id', 'abt.area_bill_id')
+                                        .join({abrd: 'area_bill_repeat_details'}, 'abrd.id', 'abt.area_bill_repeat_detail_id')
+                                        .where('abt.user_id', '=',user.id)
+                                        .andWhere('abt.status', '!=', 1);
+        for (let idx = 0; idx < listTransaksi.length; idx++) {
+            delete listTransaksi[idx].updated_by;
+            if (listTransaksi[idx].user_id != null) {
+                let dataUser = await knex('users').where('id', '=', listTransaksi[idx].user_id).first();
+                delete dataUser.created_by;
+                delete dataUser.created_at;
+                delete dataUser.refresh_token;
+                delete dataUser.total_serving_as_neighbourhood_head;
+                delete dataUser.sign_img;
+                delete dataUser.password;
+                delete dataUser.nik;
+                delete dataUser.kk_num;
+                delete dataUser.born_at;
+                delete dataUser.born_date;
+                delete dataUser.religion;
+                delete dataUser.status_perkawinan;
+                delete dataUser.profession;
+                delete dataUser.nationality;
+                delete dataUser.is_lottery_club_member;
+                listTransaksi[idx].dataUser = dataUser;
+            }
+
+            if (listTransaksi[idx].area_bill_id != null) {
+                let dataAreaBill = await knex('area_bills').where('id', '=', listTransaksi[idx].area_bill_id).first();
+                delete dataAreaBill.created_by;
+                delete dataAreaBill.ended_by;
+                listTransaksi[idx].dataAreaBill = dataAreaBill;
+            }
+
+            if (listTransaksi[idx].area_bill_repeat_detail_id != null) {
+                let dataAreaBillRepeatDetail = await knex('area_bill_repeat_details').where('id', '=', listTransaksi[idx].area_bill_repeat_detail_id).first();
+                listTransaksi[idx].dataAreaBillRepeatDetail = dataAreaBillRepeatDetail;
+            }
+
+        }
+        return res.status(200).json(listTransaksi);
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json('ERROR!');
+    }
+});
+router.get('/not-paid/get/my/filtered/yearMonth/:yearMonth', isAuthenticated, async (req, res) => {
+    let user = req.authenticatedUser;
+    let { yearMonth } = req.params;
+    try {
+        let listTransaksi = await knex.select('abt.*')
+                                        .from({abt: 'area_bill_transactions'})
+                                        .join({ab: 'area_bills'}, 'ab.id', 'abt.area_bill_id')
+                                        .join({abrd: 'area_bill_repeat_details'}, 'abrd.id', 'abt.area_bill_repeat_detail_id')
+                                        .where('abt.user_id', '=',user.id)
+                                        .whereRaw(`
+                                            (
+                                                DATE_FORMAT(abt.updated_at,"%Y-%m") = '${yearMonth}' 
+                                            )`)
+                                        .andWhere('abt.status', '!=', 1);
+        for (let idx = 0; idx < listTransaksi.length; idx++) {
+            delete listTransaksi[idx].updated_by;
+            if (listTransaksi[idx].user_id != null) {
+                let dataUser = await knex('users').where('id', '=', listTransaksi[idx].user_id).first();
+                delete dataUser.created_by;
+                delete dataUser.created_at;
+                delete dataUser.refresh_token;
+                delete dataUser.total_serving_as_neighbourhood_head;
+                delete dataUser.sign_img;
+                delete dataUser.password;
+                delete dataUser.nik;
+                delete dataUser.kk_num;
+                delete dataUser.born_at;
+                delete dataUser.born_date;
+                delete dataUser.religion;
+                delete dataUser.status_perkawinan;
+                delete dataUser.profession;
+                delete dataUser.nationality;
+                delete dataUser.is_lottery_club_member;
+                listTransaksi[idx].dataUser = dataUser;
+            }
+
+            if (listTransaksi[idx].area_bill_id != null) {
+                let dataAreaBill = await knex('area_bills').where('id', '=', listTransaksi[idx].area_bill_id).first();
+                delete dataAreaBill.created_by;
+                delete dataAreaBill.ended_by;
+                listTransaksi[idx].dataAreaBill = dataAreaBill;
+            }
+
+            if (listTransaksi[idx].area_bill_repeat_detail_id != null) {
+                let dataAreaBillRepeatDetail = await knex('area_bill_repeat_details').where('id', '=', listTransaksi[idx].area_bill_repeat_detail_id).first();
+                listTransaksi[idx].dataAreaBillRepeatDetail = dataAreaBillRepeatDetail;
+            }
+
+        }
+        debugPrint(listTransaksi.length)
         return res.status(200).json(listTransaksi);
     } catch (error) {
         console.error(error);
