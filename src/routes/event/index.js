@@ -478,6 +478,63 @@ router.get('/task/detail/list/get/mine', isAuthenticated, async (req, res) => {
 });
 // === 
 
+// === GET LIST EVENT TASK DETAIL MINE
+router.get('/task/detail/byID/:id', isAuthenticated, async (req, res) => {
+    let user = req.authenticatedUser;
+    let { id } = req.params;
+    try {
+        let dataEventTaskDetail = await knex('event_task_details').where('id', '=', id).first();
+
+            let dataUser = await knex('users').where('id', '=', dataEventTaskDetail.user_id).first();
+            delete dataUser.created_by;
+            delete dataUser.created_at;
+            delete dataUser.refresh_token;
+            delete dataUser.total_serving_as_neighbourhood_head;
+            delete dataUser.sign_img;
+            delete dataUser.password;
+            delete dataUser.nik;
+            delete dataUser.kk_num;
+            delete dataUser.born_at;
+            delete dataUser.born_date;
+            delete dataUser.religion;
+            delete dataUser.status_perkawinan;
+            delete dataUser.profession;
+            delete dataUser.nationality;
+            delete dataUser.is_lottery_club_member;
+            dataEventTaskDetail.dataUser = dataUser;
+
+            let dataEventTask = await knex('event_tasks').where('id', '=', dataEventTaskDetail.task_id).first();
+            let dataEvent = await knex('events').where('id', '=', dataEventTask.event_id).first();
+            let createdBy = await knex('users').where('id', '=', dataEvent.created_by).first();
+            delete createdBy.created_by;
+            delete createdBy.created_at;
+            delete createdBy.refresh_token;
+            delete createdBy.total_serving_as_neighbourhood_head;
+            delete createdBy.sign_img;
+            delete createdBy.password;
+            delete createdBy.nik;
+            delete createdBy.kk_num;
+            delete createdBy.born_at;
+            delete createdBy.born_date;
+            delete createdBy.religion;
+            delete createdBy.status_perkawinan;
+            delete createdBy.profession;
+            delete createdBy.nationality;
+            delete createdBy.is_lottery_club_member;
+
+            dataEvent.created_by = createdBy;
+            dataEventTask.dataEvent = dataEvent;
+            dataEventTaskDetail.dataTask = dataEventTask;
+        
+
+        return res.status(200).json(dataEventTaskDetail);
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json('ERROR');
+    }
+});
+// === 
+
 // === GET LIST EVENT
 router.get('/get/all', isAuthenticated, async (req, res) => {
     let user = req.authenticatedUser;
@@ -701,6 +758,18 @@ router.patch('/delete', isAuthenticated, async (req, res) => {
         await knex('events').update({
             "status": -1
         }).where('id', '=', event_id);
+
+        await knex('event_tasks').update({
+            "status": -1
+        }).where('event_id', '=', event_id);
+
+        let listTugas = await knex('event_tasks').where('event_id', '=', event_id);
+
+        for (let index = 0; index < listTugas.length; index++) {
+            await knex('event_task_details').update({
+                "status": -4
+            }).where('task_id', '=', listTugas[index].id);
+        }
 
         return res.status(200).json("Berhasil menghapus acara !");
     } catch (error) {
