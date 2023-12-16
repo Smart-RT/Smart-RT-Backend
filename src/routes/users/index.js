@@ -486,7 +486,7 @@ router.patch(
 // === UPDATE PROFILE (Nama, Jenis Kelamin, Tanggal Lahir, Alamat)
 router.patch('/updateProfile/:uid', isAuthenticated, async (req, res) => {
     let { uid } = req.params;
-    let { full_name, gender, born_date, address } = req.body;
+    let { full_name, gender, born_date, address, bornPlace, nationality, profession, religion, status_perkawinan } = req.body;
 
     try {
         // Cek token dengan user id di URL sama
@@ -501,6 +501,11 @@ router.patch('/updateProfile/:uid', isAuthenticated, async (req, res) => {
             stringUtils.isEmptyString(full_name) ||
             stringUtils.isEmptyString(gender) ||
             stringUtils.isEmptyString(born_date) ||
+            stringUtils.isEmptyString(bornPlace) ||
+            stringUtils.isEmptyString(nationality) ||
+            stringUtils.isEmptyString(religion) ||
+            stringUtils.isEmptyString(status_perkawinan) ||
+            stringUtils.isEmptyString(profession) ||
             stringUtils.isEmptyString(address)
         ) {
             return res
@@ -516,6 +521,11 @@ router.patch('/updateProfile/:uid', isAuthenticated, async (req, res) => {
                     .tz(born_date, 'YYYY-MM-DD', 'Asia/Jakarta')
                     .format('YYYY-MM-DD'),
                 address: address,
+                born_at: bornPlace,
+                nationality: nationality,
+                religion: religion,
+                status_perkawinan: status_perkawinan,
+                profession: profession,
             })
             .where('id', '=', uid);
         return res.status(200).json('Update Berhasil');
