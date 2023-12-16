@@ -42,7 +42,7 @@ router.post('/notification', async (req,res)=>{
                 "latest_payment_at": moment().toDate(),
                 "status": 1,
             })
-        .where('id', '=', dataSubscribeBill.pro_subscribe_id).first();
+        .where('id', '=', dataSubscribeBill.pro_subscribe_id);
 
         
     }else if (data.order_id.substring(0,2) == 'IU' &&  data.transaction_status == 'settlement') {
