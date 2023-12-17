@@ -707,6 +707,17 @@ router.post('/reqUserRole', isAuthenticated,
                     created_at: moment().toDate(),
                 };
                 let id = await knex('user_role_requests').insert(data);
+                // Ambil data urban village dari userRoleReq.
+                let urbanVillage = await knex('urban_villages')
+                    .where('id', '=', wilayah.urban_village_id)
+                    .first();
+
+                // Ambil data kecamatan (?) dari urbanVillage
+                let subDistrict = await knex('sub_districts')
+                    .where('id', '=', urbanVillage.kecamatan_id)
+                    .first();
+                data.urban_village_id = urbanVillage;
+                data.sub_district_id = subDistrict;
                 return res.status(200).json({ id: id[0], ...data });
             }
             // Req jadi Ketua RT
