@@ -34,7 +34,9 @@ router.get('/get/status/:status', isAuthenticated, async (req, res) => {
                 listData = await knex('meetings')
                     .where('status', '=', '1')
                     .andWhere('meet_datetime', '>=', dateTimeNow)
-                    .whereRaw(`(area_id = ${user.area_id} || created_by = ${user.id})`);
+                    .whereRaw(`(area_id = ${user.area_id} || created_by = ${user.id})`)
+                    .orderBy('meet_datetime')
+                    ;
             }
             // else if (user.user_role == 5 || user.user_role == 6) {
             //     listData = await knex('meetings')
@@ -46,7 +48,8 @@ router.get('/get/status/:status', isAuthenticated, async (req, res) => {
                 listData = await knex('meetings')
                     .where('status', '=', '1')
                     .andWhere('meet_datetime', '>=', dateTimeNow)
-                    .andWhere('created_by', '=', user.id);
+                    .andWhere('created_by', '=', user.id)
+                    .orderBy('meet_datetime');
             }
         } else if (status == 'permohonan') {
             let dateTimeNow = moment().toDate();
@@ -54,7 +57,8 @@ router.get('/get/status/:status', isAuthenticated, async (req, res) => {
                 listData = await knex('meetings')
                     .where('status', '=', '0')
                     .andWhere('meet_datetime', '>=', dateTimeNow)
-                    .whereRaw(`(area_id = ${user.area_id} || created_by = ${user.id})`);
+                    .whereRaw(`(area_id = ${user.area_id} || created_by = ${user.id})`)
+                    .orderBy('meet_datetime');
             }
             // else if (user.user_role == 5 || user.user_role == 6) {
             //     listData = await knex('meetings')
@@ -65,7 +69,8 @@ router.get('/get/status/:status', isAuthenticated, async (req, res) => {
                 listData = await knex('meetings')
                     .where('status', '=', '0')
                     .andWhere('meet_datetime', '>=', dateTimeNow)
-                    .andWhere('created_by', '=', user.id);
+                    .andWhere('created_by', '=', user.id)
+                    .orderBy('meet_datetime');
             }
         } else if (status == 'telah-berlalu') {
             let dateTimeNow = moment().toDate();
@@ -73,7 +78,8 @@ router.get('/get/status/:status', isAuthenticated, async (req, res) => {
                 listData = await knex('meetings')
                     .where('status', '>=', '0')
                     .andWhere('meet_datetime', '<', dateTimeNow)
-                    .whereRaw(`(area_id = ${user.area_id} || created_by = ${user.id})`);
+                    .whereRaw(`(area_id = ${user.area_id} || created_by = ${user.id})`)
+                    .orderBy('created_at', 'desc');
             }
             // else if (user.user_role == 5 || user.user_role == 6) {
             //     listData = await knex('meetings')
@@ -85,13 +91,15 @@ router.get('/get/status/:status', isAuthenticated, async (req, res) => {
                 listData = await knex('meetings')
                     .where('status', '>=', '0')
                     .andWhere('meet_datetime', '<', dateTimeNow)
-                    .andWhere('created_by', '=', user.id);
+                    .andWhere('created_by', '=', user.id)
+                    .orderBy('created_at', 'desc');
             }
         } else if (status == 'status-negative') {
             if (user.user_role == 7 || user.user_role == 5 || user.user_role == 6) {
                 listData = await knex('meetings')
                     .where('status', '<', '0')
-                    .whereRaw(`(area_id = ${user.area_id} || created_by = ${user.id})`);
+                    .whereRaw(`(area_id = ${user.area_id} || created_by = ${user.id})`)
+                    .orderBy('created_at', 'desc');
             }
             // else if (user.user_role == 5 || user.user_role == 6) {
             //     listData = await knex('meetings')
@@ -101,14 +109,15 @@ router.get('/get/status/:status', isAuthenticated, async (req, res) => {
             else {
                 listData = await knex('meetings')
                     .where('status', '<', '0')
-                    .andWhere('created_by', '=', user.id);
+                    .andWhere('created_by', '=', user.id)
+                    .orderBy('created_at', 'desc');
             }
         }
 
         for (let idx = 0; idx < listData.length; idx++) {
             if (listData[idx].confirmated_by != null) {
                 let dataUserConfirmated = await knex('users').where('id', '=', listData[idx].confirmated_by).first();
-                if (dataUserConfirmated.area_id != null || dataUserConfirmated.area_id != '') {
+                if (dataUserConfirmated.area_id != null && dataUserConfirmated.area_id != '') {
                     let dataArea = await knex('areas').where('id', '=', dataUserConfirmated.area_id).first();
 
                     let dataUrbanVillage = await knex({ u: 'urban_villages' })
@@ -138,7 +147,7 @@ router.get('/get/status/:status', isAuthenticated, async (req, res) => {
             }
             if (listData[idx].new_respondent_by != null) {
                 let dataUserNewRespondent = await knex('users').where('id', '=', listData[idx].new_respondent_by).first();
-                if (dataUserNewRespondent.area_id != null || dataUserNewRespondent.area_id != '') {
+                if (dataUserNewRespondent.area_id != null && dataUserNewRespondent.area_id != '') {
                     let dataArea = await knex('areas').where('id', '=', dataUserNewRespondent.area_id).first();
 
                     let dataUrbanVillage = await knex({ u: 'urban_villages' })
@@ -169,7 +178,7 @@ router.get('/get/status/:status', isAuthenticated, async (req, res) => {
 
             if (listData[idx].meet_datetime_negotiated_by != null) {
                 let dataUserDateTimeNegotiatedBy = await knex('users').where('id', '=', listData[idx].meet_datetime_negotiated_by).first();
-                if (dataUserDateTimeNegotiatedBy.area_id != null || dataUserDateTimeNegotiatedBy.area_id != '') {
+                if (dataUserDateTimeNegotiatedBy.area_id != null && dataUserDateTimeNegotiatedBy.area_id != '') {
                     let dataArea = await knex('areas').where('id', '=', dataUserDateTimeNegotiatedBy.area_id).first();
 
                     let dataUrbanVillage = await knex({ u: 'urban_villages' })
@@ -199,7 +208,7 @@ router.get('/get/status/:status', isAuthenticated, async (req, res) => {
             }
 
             let dataUserCreatedBy = await knex('users').where('id', '=', listData[idx].created_by).first();
-            if (dataUserCreatedBy.area_id != null || dataUserCreatedBy.area_id != '') {
+            if (dataUserCreatedBy.area_id != null && dataUserCreatedBy.area_id != '') {
                 let dataArea = await knex('areas').where('id', '=', dataUserCreatedBy.area_id).first();
 
                 let dataUrbanVillage = await knex({ u: 'urban_villages' })
@@ -228,7 +237,7 @@ router.get('/get/status/:status', isAuthenticated, async (req, res) => {
             listData[idx].created_by = dataUserCreatedBy;
 
             let dataUserOriginRespondentBy = await knex('users').where('id', '=', listData[idx].origin_respondent_by).first();
-            if (dataUserOriginRespondentBy.area_id != null || dataUserOriginRespondentBy.area_id != '') {
+            if (dataUserOriginRespondentBy.area_id != null && dataUserOriginRespondentBy.area_id != '') {
                 let dataArea = await knex('areas').where('id', '=', dataUserOriginRespondentBy.area_id).first();
 
                 let dataUrbanVillage = await knex({ u: 'urban_villages' })
@@ -292,7 +301,7 @@ router.get('/get/id-meet/:idMeet', isAuthenticated, async (req, res) => {
 
         if (dataJanjiTemu.meet_datetime_negotiated_by != null) {
             let dataUserNewRespondent = await knex('users').where('id', '=', dataJanjiTemu.meet_datetime_negotiated_by).first();
-            if (dataUserNewRespondent.area_id != null || dataUserNewRespondent.area_id != '') {
+            if (dataUserNewRespondent.area_id != null && dataUserNewRespondent.area_id != '') {
                 let dataArea = await knex('areas').where('id', '=', dataUserNewRespondent.area_id).first();
 
                 let dataUrbanVillage = await knex({ u: 'urban_villages' })
@@ -322,7 +331,7 @@ router.get('/get/id-meet/:idMeet', isAuthenticated, async (req, res) => {
         }
 
         let dataUserCreatedBy = await knex('users').where('id', '=', dataJanjiTemu.created_by).first();
-        if (dataUserCreatedBy.area_id != null || dataUserCreatedBy.area_id != '') {
+        if (dataUserCreatedBy.area_id != null && dataUserCreatedBy.area_id != '') {
             let dataArea = await knex('areas').where('id', '=', dataUserCreatedBy.area_id).first();
 
             let dataUrbanVillage = await knex({ u: 'urban_villages' })
@@ -351,7 +360,7 @@ router.get('/get/id-meet/:idMeet', isAuthenticated, async (req, res) => {
         dataJanjiTemu.created_by = dataUserCreatedBy;
 
         let dataUserOriginRespondentBy = await knex('users').where('id', '=', dataJanjiTemu.origin_respondent_by).first();
-        if (dataUserOriginRespondentBy.area_id != null || dataUserOriginRespondentBy.area_id != '') {
+        if (dataUserOriginRespondentBy.area_id != null && dataUserOriginRespondentBy.area_id != '') {
             let dataArea = await knex('areas').where('id', '=', dataUserOriginRespondentBy.area_id).first();
 
             let dataUrbanVillage = await knex({ u: 'urban_villages' })
