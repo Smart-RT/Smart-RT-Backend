@@ -588,7 +588,7 @@ router.patch('/periode/pertemuan', isAuthenticated, async (req, res) => {
                     .format('YYYY-MM-DD HH:mm'),
                 updated_at: moment().toDate(),
                 updated_by: user.id,
-            });
+            }).where('id','=', dataLotteryClubPeriod.id);
         }
 
         // Insert BILLS and ABSENCES jika data status yang dikirim published
