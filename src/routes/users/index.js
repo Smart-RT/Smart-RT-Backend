@@ -300,25 +300,37 @@ router.post('/get', async (req, res) => {
             .where('requester_id', '=', user.id)
             .orderBy('id', 'desc');
 
-        for (let idx = 0; idx < userRoleReq.length; idx++) {
-            if (userRoleReq[idx].request_role == 7) {
-                // Ambil data urban village dari userRoleReq.
-                let urbanVillage = await knex('urban_villages')
-                    .where('id', '=', userRoleReq[idx].urban_village_id)
-                    .first();
+        // for (let idx = 0; idx < userRoleReq.length; idx++) {
+        //     if (userRoleReq[idx].request_role == 7) {
+        //         // Ambil data urban village dari userRoleReq.
+        //         let urbanVillage = await knex('urban_villages')
+        //             .where('id', '=', userRoleReq[idx].urban_village_id)
+        //             .first();
 
-                // Ambil data kecamatan (?) dari urbanVillage
-                let subDistrict = await knex('sub_districts')
-                    .where('id', '=', urbanVillage.kecamatan_id)
-                    .first();
+        //         // Ambil data kecamatan (?) dari urbanVillage
+        //         let subDistrict = await knex('sub_districts')
+        //             .where('id', '=', urbanVillage.kecamatan_id)
+        //             .first();
 
-                userRoleReq[idx].sub_district_id = subDistrict;
-                userRoleReq[idx].urban_village_id = urbanVillage;
-                userRoleReq[idx].urban_village_id.kecamatan = {
-                    id: urbanVillage.kecamatan_id,
-                };
-            }
-        }
+        //         userRoleReq[idx].sub_district_id = subDistrict;
+        //         userRoleReq[idx].urban_village_id = urbanVillage;
+        //         userRoleReq[idx].urban_village_id.kecamatan = {
+        //             id: urbanVillage.kecamatan_id,
+        //         };
+        //     }
+        // }
+        // ambil urban village dan data subdistrict dari user role request
+        userRoleReq = await Promise.all(userRoleReq.map(async (ur) => {
+            let urbanVillage = await knex('urban_villages')
+                .where('id', '=', ur.urban_village_id)
+                .first();
+
+            // Ambil data kecamatan (?) dari urbanVillage
+            let subDistrict = await knex('sub_districts')
+                .where('id', '=', ur.sub_district_id)
+                .first();
+            return { ...ur, urban_village_id: urbanVillage, sub_district_id: subDistrict };
+        }));
 
         payload.user_role_requests = userRoleReq;
 
@@ -547,12 +559,171 @@ router.post('/refreshToken/:id', async (req, res) => {
             .first();
         if (!user) return res.status(400).json('Refresh Token Tidak Valid');
         delete user.password;
+
+        let dataSubDistrict = await knex('sub_districts')
+            .where('id', '=', user.sub_district_id).first();
+        let dataUrbanVillage = await knex({ u: 'urban_villages' })
+            .select('u.*', {
+                id_kecamatan: 'sd.id',
+                nama_kecamatan: 'sd.name',
+                wilayah: 'sd.wilayah',
+            }).where('u.id', '=', user.urban_village_id)
+            .join({ sd: 'sub_districts' }, 'sd.id', 'u.kecamatan_id');
+
+        dataUrbanVillage = dataUrbanVillage.map((x) => {
+            return {
+                id: x.id,
+                name: x.name,
+                kecamatan: {
+                    id: x.id_kecamatan,
+                    nama_kecamatan: x.nama_kecamatan,
+                    wilayah: x.wilayah,
+                },
+            };
+        });
+        user.data_sub_district = dataSubDistrict;
+        user.data_urban_village = dataUrbanVillage[0];
+
         let payload = { ...user };
+
+        // let jwtToken = jwt.sign(payload, process.env.JWT_SECRET, {
+        //     expiresIn: process.env.JWT_EXPIRE_TIME,
+        // });
         let jwtToken = tokenUtils.createJWT(payload);
+
         let refreshToken = tokenUtils.createRefreshToken(15);
+
         await knex('users')
             .update({ refresh_token: refreshToken })
             .where('id', '=', user.id);
+
+        // ambil user role request.
+        let userRoleReq = await knex('user_role_requests')
+            .where('requester_id', '=', user.id)
+            .orderBy('id', 'desc');
+
+        // ambil urban village dan data subdistrict dari user role request
+        userRoleReq = await Promise.all(userRoleReq.map(async (ur) => {
+            let urbanVillage = await knex('urban_villages')
+                .where('id', '=', ur.urban_village_id)
+                .first();
+
+            // Ambil data kecamatan (?) dari urbanVillage
+            let subDistrict = await knex('sub_districts')
+                .where('id', '=', ur.sub_district_id)
+                .first();
+            return { ...ur, urban_village_id: urbanVillage, sub_district_id: subDistrict };
+        }));
+
+        payload.user_role_requests = userRoleReq;
+
+        if (user.user_role != 0 && user.user_role != 1 && user.user_role != 2) {
+            // Ambil data Area
+            let dataArea = await knex('areas')
+                .where('id', '=', user.area_id)
+                .first();
+
+            if (dataArea.lottery_club_id != null) {
+                let dataLotteryClub = await knex('lottery_clubs')
+                    .where('id', '=', dataArea.lottery_club_id)
+                    .first();
+                dataArea.lottery_club_id = dataLotteryClub;
+            }
+
+            let dataKetuaRT = await knex('users')
+                .where('id', '=', dataArea.ketua_id)
+                .first();
+            delete dataKetuaRT.rt_num;
+            delete dataKetuaRT.sub_district_id;
+            delete dataKetuaRT.urban_village_id;
+            delete dataKetuaRT.rw_num;
+            delete dataKetuaRT.born_at;
+            delete dataKetuaRT.born_date;
+            delete dataKetuaRT.religion;
+            delete dataKetuaRT.is_married;
+            delete dataKetuaRT.profession;
+            delete dataKetuaRT.password;
+            delete dataKetuaRT.is_lottery_club_member;
+            delete dataKetuaRT.task_rating;
+            delete dataKetuaRT.sign_img;
+            delete dataKetuaRT.total_serving_as_neighbourhood_head;
+            delete dataKetuaRT.refresh_token;
+            delete dataKetuaRT.created_at;
+            delete dataKetuaRT.created_by;
+            dataArea.ketua_id = dataKetuaRT;
+
+            if (dataArea.wakil_ketua_id) {
+                let dataWakilKetuaRT = await knex('users')
+                    .where('id', '=', dataArea.wakil_ketua_id)
+                    .first();
+                delete dataWakilKetuaRT.rt_num;
+                delete dataWakilKetuaRT.sub_district_id;
+                delete dataWakilKetuaRT.urban_village_id;
+                delete dataWakilKetuaRT.rw_num;
+                delete dataWakilKetuaRT.born_at;
+                delete dataWakilKetuaRT.born_date;
+                delete dataWakilKetuaRT.religion;
+                delete dataWakilKetuaRT.is_married;
+                delete dataWakilKetuaRT.profession;
+                delete dataWakilKetuaRT.password;
+                delete dataWakilKetuaRT.is_lottery_club_member;
+                delete dataWakilKetuaRT.task_rating;
+                delete dataWakilKetuaRT.sign_img;
+                delete dataWakilKetuaRT.total_serving_as_neighbourhood_head;
+                delete dataWakilKetuaRT.refresh_token;
+                delete dataWakilKetuaRT.created_at;
+                delete dataWakilKetuaRT.created_by;
+                dataArea.wakil_ketua_id = dataWakilKetuaRT;
+            }
+            if (dataArea.sekretaris_id) {
+                let dataSekretaris = await knex('users')
+                    .where('id', '=', dataArea.sekretaris_id)
+                    .first();
+                delete dataSekretaris.rt_num;
+                delete dataSekretaris.sub_district_id;
+                delete dataSekretaris.urban_village_id;
+                delete dataSekretaris.rw_num;
+                delete dataSekretaris.born_at;
+                delete dataSekretaris.born_date;
+                delete dataSekretaris.religion;
+                delete dataSekretaris.is_married;
+                delete dataSekretaris.profession;
+                delete dataSekretaris.password;
+                delete dataSekretaris.is_lottery_club_member;
+                delete dataSekretaris.task_rating;
+                delete dataSekretaris.sign_img;
+                delete dataSekretaris.total_serving_as_neighbourhood_head;
+                delete dataSekretaris.refresh_token;
+                delete dataSekretaris.created_at;
+                delete dataSekretaris.created_by;
+                dataArea.sekretaris_id = dataSekretaris;
+            }
+            if (dataArea.bendahara_id) {
+                let dataBendahara = await knex('users')
+                    .where('id', '=', dataArea.bendahara_id)
+                    .first();
+                delete dataBendahara.rt_num;
+                delete dataBendahara.sub_district_id;
+                delete dataBendahara.urban_village_id;
+                delete dataBendahara.rw_num;
+                delete dataBendahara.born_at;
+                delete dataBendahara.born_date;
+                delete dataBendahara.religion;
+                delete dataBendahara.is_married;
+                delete dataBendahara.profession;
+                delete dataBendahara.password;
+                delete dataBendahara.is_lottery_club_member;
+                delete dataBendahara.task_rating;
+                delete dataBendahara.sign_img;
+                delete dataBendahara.total_serving_as_neighbourhood_head;
+                delete dataBendahara.refresh_token;
+                delete dataBendahara.created_at;
+                delete dataBendahara.created_by;
+                dataArea.bendahara_id = dataBendahara;
+            }
+            payload.area = dataArea;
+        }
+
         return res.status(200).json({
             user: payload,
             token: jwtToken,
