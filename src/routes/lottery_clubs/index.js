@@ -210,6 +210,8 @@ router.post('/periode', isAuthenticated, async (req, res) => {
             return res.status(400).json('Data tidak valid');
         }
 
+        console.log('Year Limit : ' + year_limit);
+
         // Mengecek data total members dengan lama periode dan total pertemuan sesuai dengan CATATAN dan ATURAN ARISAN
         if ((members.length >= 6 && members.length <= 11) && (year_limit != 0.5 || total_meets != 6)) {
             return res.status(400).json('Data tidak valid');
@@ -256,6 +258,11 @@ router.post('/periode', isAuthenticated, async (req, res) => {
         await knex('areas')
             .update({ is_lottery_club_period_active: 1 })
             .where('id', '=', dataArea.id);
+
+        // Mengupdate Lottery Club
+        await knex('lottery_clubs')
+            .update({ last_period: dataLotteryClub.last_period + 1 })
+            .where('area_id', '=', dataArea.id);
 
         // Insert member lottery club period
         for (let idx = 0; idx < members.length; idx++) {
@@ -610,6 +617,10 @@ router.patch('/periode/pertemuan', isAuthenticated, async (req, res) => {
                         created_by: user.id,
                         created_at: moment().toDate()
                     });
+
+                await knex('lottery_club_period_members').update({
+                    debt_amount: listAnggotaPeriode[idx].debt_amount + dataLotteryClubPeriod.bill_amount
+                }).where('id', '=', listAnggotaPeriode[idx].id);
             }
 
         }
@@ -746,7 +757,10 @@ router.patch('/periode/pertemuan/start', isAuthenticated, async (req, res) => {
 
         // Mengecek Butuh Berapa Pemenang
         let ctrWinnerNeeded = Math.floor(dataPeriod.total_already_not_be_a_winner / (dataPeriod.total_meets - (dataPeriod.meet_ctr - 1)));
-        console.log(ctrWinnerNeeded);
+        console.log('dataPeriod.total_already_not_be_a_winner : ' + dataPeriod.total_already_not_be_a_winner);
+        console.log('dataPeriod.total_meets : ' + dataPeriod.total_meets);
+        console.log('dataPeriod.meet_ctr : ' + dataPeriod.meet_ctr);
+        console.log('ctrWinnerNeeded : ' + ctrWinnerNeeded);
         
         // Mengambil data Anggota yang belum pernah menang dan utang = 0 dan hadir di arisan
         let listMemberBelumMenang = await knex.select({
@@ -755,12 +769,25 @@ router.patch('/periode/pertemuan/start', isAuthenticated, async (req, res) => {
             members: 'lottery_club_period_members',
             absences: 'lottery_club_period_detail_absences'
         }).whereRaw(`
-            members.lottery_club_period_id = ${dataPeriod.id} AND
-            members.debt_amount = 0 AND
-            members.already_be_a_winner = 0 AND
-            absences.is_present = 1 AND
-            members.id = absences.lottery_club_period_member_id`
+        members.lottery_club_period_id = ${dataPeriod.id} AND
+        members.debt_amount = 0 AND
+        members.already_be_a_winner = 0 AND
+        absences.is_present = 1 AND
+        members.id = absences.lottery_club_period_member_id`
         );
+        console.log('listMemberBelumMenang.length : ' + listMemberBelumMenang.length);
+        // let listMemberBelumMenang = await knex.select({
+        //     id: 'members.user_id'
+        // }).from({
+        //     members: 'lottery_club_period_members',
+        //     absences: 'lottery_club_period_detail_absences'
+        // }).whereRaw(`
+        //     members.lottery_club_period_id = ${dataPeriod.id} AND
+        //     members.debt_amount = 0 AND
+        //     members.already_be_a_winner = 0 AND
+        //     absences.is_present = 1 AND
+        //     members.id = absences.lottery_club_period_member_id`
+        // );
 
         // Pokok diutamakan yang ga bermasalah
         let idxRandomP1, idxRandomP2;
@@ -784,7 +811,7 @@ router.patch('/periode/pertemuan/start', isAuthenticated, async (req, res) => {
             idRandomP1 = listMemberBelumMenang[idxRandomP1].id;
 
             listMemberBelumMenang = await knex.select({
-                id: 'members.id'
+                id: 'members.user_id'
             }).from({
                 members: 'lottery_club_period_members',
                 absences: 'lottery_club_period_detail_absences'
@@ -801,7 +828,7 @@ router.patch('/periode/pertemuan/start', isAuthenticated, async (req, res) => {
         } else {
             // Pemenang bermasalah kabeh intine XD
             listMemberBelumMenang = await knex.select({
-                id: 'members.id'
+                id: 'members.user_id'
             }).from({
                 members: 'lottery_club_period_members',
                 absences: 'lottery_club_period_detail_absences'
@@ -819,9 +846,12 @@ router.patch('/periode/pertemuan/start', isAuthenticated, async (req, res) => {
             idRandomP2 = listMemberBelumMenang[idxRandomP2].id;
         }
 
+        console.log('idRandomP1 : ' + idRandomP1)
+        console.log('idRandomP2 : ' + idRandomP2)
+
         let dataPemenang = await knex('lottery_club_period_members')
-            .where('id', '=', idRandomP1)
-            .orWhere('id','=', idRandomP2);
+            .whereRaw(`user_id = ${idRandomP1} or user_id = ${idRandomP2}`)
+            .andWhere('periode','=',dataPertemuan.period_ke);
 
         for (let idx = 0; idx < dataPemenang.length; idx++) {
             let dataUser = await knex('users')
@@ -857,40 +887,57 @@ router.patch('/periode/pertemuan/start', isAuthenticated, async (req, res) => {
                     already_be_a_winner: 1,
                     updated_at: moment().toDate(),
                     updated_by: user.id
-                }).where('id', '=', idRandomP1);
+                }).where('user_id', '=', idRandomP1).andWhere('periode','=',dataPertemuan.period_ke);
         } else {
             await knex('lottery_club_period_members')
                 .update({
                     already_be_a_winner: 1,
                     updated_at: moment().toDate(),
                     updated_by: user.id
-                }).where('id', '=', idRandomP1).orWhere('id', '=', idRandomP2);
+                }).whereRaw(`user_id = ${idRandomP1} or user_id = ${idRandomP2}`)
+                .andWhere('periode','=',dataPertemuan.period_ke);
         }
 
-        
-        let datetimeMeetBefore = moment
-        .tz(dataPertemuan.meet_date, 'YYYY-MM-DD HH:mm', 'Asia/Jakarta')
-        .format('YYYY-MM-DD HH:mm');
-        let nextDate = moment.tz(datetimeMeetBefore, 'YYYY-MM-DD HH:mm', 'Asia/Jakarta').add(1,'M').format('YYYY-MM-DD HH:mm');
+        if (dataPeriod.meet_ctr != dataPeriod.total_meets) {
+            let datetimeMeetBefore = moment
+            .tz(dataPertemuan.meet_date, 'YYYY-MM-DD HH:mm', 'Asia/Jakarta')
+            .format('YYYY-MM-DD HH:mm');
+            let nextDate = moment.tz(datetimeMeetBefore, 'YYYY-MM-DD HH:mm', 'Asia/Jakarta').add(1,'M').format('YYYY-MM-DD HH:mm');
+    
+            // Insert Detail Period pertemuan selanjutnya dgn stats unpublished (Nanti dapat di update)
+            await knex('lottery_club_period_details').insert({
+                lottery_club_period_id: dataPeriod.id,
+                lottery_club_id: dataArea.lottery_club_id,
+                status: 'Unpublished',
+                is_offline_meet: 0,
+                meet_date: nextDate,
+                pertemuan_ke: dataPeriod.meet_ctr +1,
+                period_ke: dataPeriod.period,
+                created_at: moment().toDate(),
+                created_by: user.id,
+            });
+    
+            // Update LOTTERY_CLUB_PERIODS
+            await knex('lottery_club_periods').update({
+                meet_ctr: dataPeriod.meet_ctr + 1,
+                total_already_not_be_a_winner: dataPeriod.total_already_not_be_a_winner - ctrWinnerNeeded,
+                default_meet_date: nextDate,
+            }).where('id', '=', dataPeriod.id);
+        }else{
+            // Update LOTTERY_CLUB_PERIODS
+            await knex('lottery_club_periods').update({
+                total_already_not_be_a_winner: 0,
+                ended_at: moment().toDate(),
+            }).where('id', '=', dataPeriod.id);
 
-        // Insert Detail Period pertemuan selanjutnya dgn stats unpublished (Nanti dapat di update)
-        await knex('lottery_club_period_details').insert({
-            lottery_club_period_id: dataPeriod.id,
-            lottery_club_id: dataArea.lottery_club_id,
-            status: 'Unpublished',
-            is_offline_meet: 0,
-            meet_date: nextDate,
-            pertemuan_ke: dataPeriod.meet_ctr +1,
-            created_at: moment().toDate(),
-            created_by: user.id,
-        });
+            await knex('areas').update({
+                is_lottery_club_period_active: 0
+            }).where('id','=',user.area_id);
 
-        // Update LOTTERY_CLUB_PERIODS
-        await knex('lottery_club_periods').update({
-            meet_ctr: dataPeriod.meet_ctr + 1,
-            total_already_not_be_a_winner: dataPeriod.total_already_not_be_a_winner - ctrWinnerNeeded,
-            default_meet_date: nextDate,
-        }).where('id', '=', dataPeriod.id)
+            await knex('users').update({
+                is_lottery_club_member: 0
+            }).where('area_id','=', user.area_id)
+        }
 
         return res.status(200).json(dataPemenang);
 
@@ -901,10 +948,34 @@ router.patch('/periode/pertemuan/start', isAuthenticated, async (req, res) => {
 });
 // === END
 
-// === GET LAST PERIODE ID
-router.get('/getLastPeriodeID/:idArisan', async (req, res) => {
-    let { idArisan } = req.params;
+// === GET LAST PERIODE
+router.get('/getLastPeriode', isAuthenticated, async (req, res) => {
+    let user = req.authenticatedUser;
     try {
+        let lastPeriod = await knex('lottery_clubs')
+            .select('last_period')
+            .where('area_id', '=', user.area_id)
+            .first();
+        
+        console.log(lastPeriod)
+
+        return res.status(200).json(lastPeriod);
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json('ERROR!');
+    }
+});
+// === END
+
+// === GET LAST PERIODE ID
+router.get('/getLastPeriodeID/:idArisan', isAuthenticated, async (req, res) => {
+    let { idArisan } = req.params;
+    let user = req.authenticatedUser;
+    try {
+        let dataArea = await knex('areas').where('id','=', user.area_id).first();
+        if (dataArea.is_lottery_club_period_active == 0) {
+            return res.status(200).json('Belum ada Periode Arisan');
+        }
         let dataArisan = await knex('lottery_clubs')
             .where('id', '=', idArisan).first();
 
@@ -1323,6 +1394,8 @@ router.post('/payment', async (req, res) => {
             }
         );
 
+        console.log('response.data : ' + response.data)
+
         await knex('lottery_club_period_detail_bills').update({
             'midtrans_order_id': response.data.order_id,
             'midtrans_transaction_id': response.data.transaction_id,
@@ -1487,6 +1560,19 @@ router.patch('/payment/cash', isAuthenticated, async (req, res) => {
             "income_amount": dataPeriode.income_amount + dataPembayaran.bill_amount,
             "kas_period_amount": dataPeriode.kas_period_amount + dataPembayaran.bill_amount
         }).where('id', '=', dataPeriode.id);
+
+        console.log('dataPembayaran.user_id : ' + dataPembayaran.user_id)
+        console.log('dataPertemuan.lottery_club_period_id : ' + dataPertemuan.lottery_club_period_id)
+        let dataUserMember = await knex('lottery_club_period_members')
+        .where('user_id', '=', dataPembayaran.user_id)
+        .andWhere('lottery_club_period_id', '=', dataPertemuan.lottery_club_period_id)
+        .first();
+        
+        console.log('dataUserMember : ' + dataUserMember.id)
+        
+        await knex('lottery_club_period_members').update({
+            debt_amount: dataUserMember.debt_amount - dataPembayaran.bill_amount
+        }).where('id','=',dataUserMember.id);
 
         return res.status(200).json("Berhasil Pembayaran Cash !");
     } catch (error) {

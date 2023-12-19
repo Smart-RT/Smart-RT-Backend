@@ -24,6 +24,22 @@ router.post('/notification', async (req,res)=>{
                 "status":1,
             })
             .where('midtrans_transaction_id', '=', data.transaction_id);
+
+        let dataLotteryClubPeriodDetailBill =  await knex('lottery_club_period_detail_bills')
+                                                    .where('midtrans_transaction_id', '=', data.transaction_id)
+                                                    .first();
+        let dataPertemuan = await knex('lottery_club_period_details')
+                                .where('id', '=', dataLotteryClubPeriodDetailBill.lottery_club_period_detail_id)
+                                .first();
+
+        
+        let dataUserMember = await knex('lottery_club_period_members')
+                                .where('user_id', '=', dataLotteryClubPeriodDetailBill.user_id)
+                                .andWhere('lottery_club_period_id', '=', dataPertemuan.lottery_club_period_id)
+                                .first();
+        await knex('lottery_club_period_members').update({
+            debt_amount: dataUserMember.debt_amount - dataLotteryClubPeriodDetailBill.bill_amount
+        }).where('id','=',dataUserMember.id);
         
     }else if (data.order_id.substring(0,2) == 'PS' &&  data.transaction_status == 'settlement') {
         console.log('=== MASOK === /payment/notification -> ADA SETTLEMENT')
