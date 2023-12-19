@@ -14,6 +14,7 @@ const {
 const path = require('path');
 const fs = require('fs-extra');
 const { takeCoverage } = require('v8');
+const { sendNotification } = require('../../utils/notification');
 
 
 // === GET LIST KANDIDAT 
@@ -184,11 +185,11 @@ router.get('/data/list/period/:periode', isAuthenticated, async (req, res) => {
         let data = await knex('votings')
             .where('periode', '=', periode);
 
-            if (data) {
-                
-                return res.status(200).json(data);
-            }
-            return res.status(400).json('Tidak ada data');
+        if (data) {
+
+            return res.status(200).json(data);
+        }
+        return res.status(400).json('Tidak ada data');
 
     } catch (error) {
         console.error(error);
@@ -224,7 +225,17 @@ router.post('/send', isAuthenticated, async (req, res) => {
 });
 // ===
 
-
+// === NOTICE
+router.post('/notice', isAuthenticated, async (req, res) => {
+    let user = req.authenticatedUser;
+    let { user_id_notice } = req.body;
+    if (user.is_committe != 1) return res.status(400).json('Anda tidak memiliki privilege');
+    if (!user_id_notice) return res.status(400).json('Data tidak valid');
+    // anda belum melakukan voting, harap segera melakuakn voting.
+    await sendNotification(parseInt(user_id_notice), 'vote', 'Notice Voting', 'Anda belum melakukan voting, harap segera melakukan voting.');
+    return res.status(200).json("Ok");
+});
+// === 
 
 
 module.exports = router;
