@@ -339,7 +339,7 @@ router.get('/not-paid/get/my', isAuthenticated, async (req, res) => {
         let listTransaksi = await knex.select('abt.*')
                                         .from({abt: 'area_bill_transactions'})
                                         .join({ab: 'area_bills'}, 'ab.id', 'abt.area_bill_id')
-                                        .join({abrd: 'area_bill_repeat_details'}, 'abrd.id', 'abt.area_bill_repeat_detail_id')
+                                        .leftJoin({abrd: 'area_bill_repeat_details'}, 'abrd.id', 'abt.area_bill_repeat_detail_id')
                                         .where('abt.user_id', '=',user.id)
                                         .andWhere('abt.status', '!=', 1);
         for (let idx = 0; idx < listTransaksi.length; idx++) {
