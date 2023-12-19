@@ -248,6 +248,7 @@ router.get('/getvoting/:periode', isAuthenticated, async (req, res) => {
         .join({ u: 'users' }, 'u.id', 'nhc.user_id')
         .where('nhc.periode', '=', periode)
         .andWhere('nhc.area_id', '=', areaId)
+        .andWhere('nhc.status', '=', 1)
         .orderBy('nhc.total_vote_obtained', 'desc');
     return res.status(200).json(candidates);
 })
