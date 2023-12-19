@@ -66,7 +66,8 @@ router.get('/get/all', isAuthenticated, async (req, res) => {
 
         let listData = await knex('committees')
             .whereBetween('created_at', [dataDate.start, dataDate.end])
-            .andWhere('status', '!=', -2);
+            .andWhere('status', '!=', -2)
+            .andWhere('area_id', '=', user.area_id);
 
         for (let idx = 0; idx < listData.length; idx++) {
             let dataUser = await knex('users').where('id','=', listData[idx].user_id).first();
