@@ -9,7 +9,7 @@ const { default: axios } = require('axios');
 const { randomVarchar, isReligionAvailable, isGenderAvailable, isWeddingStatusAvailable } = require('../../utils/strings');
 const e = require('express');
 const {
-    uploadItemLampiranJanjiTemu,
+    uploadItemLampiranJanjiTemu, uploadItemFileDocumentationEvent,
 } = require('../../middleware/upload');
 const path = require('path');
 const fs = require('fs-extra');
@@ -808,7 +808,55 @@ router.patch('/update', isAuthenticated, async (req, res) => {
 });
 // === 
 
+// ADD PHOTO DOCUMENTATION
+router.post('/add/photo-documentation', isAuthenticated,
+    uploadItemFileDocumentationEvent.array('photos',100), async (req, res) => {
+        let user = req.authenticatedUser;
+        let { event_id, area_id } = req.body;
+        try {
+            for (let idx = 0; idx < req.files.length; idx++) {
+                await knex('event_photos').insert({
+                    "name": req.files[idx].filename,
+                    "event_id": event_id,
+                    "area_id": area_id
+                });
+                let filePath = path.join(
+                    __dirname,
+                    '..',
+                    '..',
+                    '..',
+                    'public',
+                    'uploads',
+                    'events',
+                    `${event_id}`
+                );
+                if (!fs.existsSync(filePath)) {
+                    fs.mkdirSync(filePath, { recursive: true });
+                }
+                fs.moveSync(
+                    req.files[idx].path,
+                    path.join(filePath, req.files[idx].filename)
+                );
+            }
+            return res.status(200).json("Berhasil mengupload foto dokumentasi !");
+        } catch (error) {
+            console.error(error);
+            return res.status(500).json('ERROR');
+        }
+    });
 
+// GET PHOTO DOCUMENTATION 
+router.get('/get/photo-documentation/:eventId', isAuthenticated, async (req, res) => {
+    let { eventId } = req.params;
+    try {
+        let dataPhotos = await knex('event_photos').where('event_id', '=', eventId);
+        return res.status(200).json(dataPhotos);
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json('ERROR');
+    }
+});
+// === 
 
 // === GET LIST EVENT TASK DETAIL
 // router.get('/task/detail/get/id-task/:idTask', isAuthenticated, async (req, res) => {
