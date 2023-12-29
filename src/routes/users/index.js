@@ -13,6 +13,8 @@ const {
     uploadItemImage,
     uploadSignatureImage,
     uploadItemFileLampiran,
+    uploadKTPImage,
+    uploadKKImage,
 } = require('../../middleware/upload');
 const { isAuthenticated } = require('../../middleware/auth');
 const { randomVarchar } = require('../../utils/strings');
@@ -1747,5 +1749,53 @@ router.post('/role/log/add', async (req, res) => {
     }
 })
 // === END
+
+// === UPDATE User
+router.patch('/update/jenis-penduduk', isAuthenticated, async (req, res) => {
+    let { is_temporary_inhabitant, uid } = req.body;
+
+    try {
+        await knex('users')
+            .update({
+                is_temporary_inhabitant: is_temporary_inhabitant,
+            })
+            .where('id', '=', uid);
+        return res.status(200).json('Berhasil merubah jenis penduduk');
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json('ERROR!');
+    }
+});
+// === END 
+
+// === UPLOAD KTP
+router.patch(
+    '/upload/ktp',
+    isAuthenticated,
+    uploadKTPImage.single('ktp'),
+    async (req, res) => {
+        let { uid } = req.body;
+        await knex('users')
+            .update({ ktp_photo: req.file.filename })
+            .where('id', '=', uid);
+        return res.status(200).json(req.file.filename);
+    }
+);
+// === END 
+
+// === UPLOAD KTP
+router.patch(
+    '/upload/kk',
+    isAuthenticated,
+    uploadKKImage.single('kk'),
+    async (req, res) => {
+        let { uid } = req.body;
+        await knex('users')
+            .update({ kk_photo: req.file.filename })
+            .where('id', '=', uid);
+        return res.status(200).json(req.file.filename);
+    }
+);
+// === END 
 
 module.exports = router;

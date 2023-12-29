@@ -95,6 +95,98 @@ const uploadSignatureImage = multer({
     },
 });
 
+const storageKTPImage = multer.diskStorage({
+    destination: (req, file, callback) => {
+        let { uid } = req.body;
+        let filePath = path.join(
+            __dirname,
+            '..',
+            '..',
+            '..',
+            'public',
+            'uploads',
+            'users',
+            uid,
+            'KTP'
+        );
+        if (!fs.existsSync(filePath)) {
+            fs.mkdirSync(filePath, { recursive: true });
+        } else {
+            // if exist remove its content
+            fs.emptyDirSync(filePath);
+        }
+        callback(null, filePath);
+    },
+    filename: (req, file, callback) => {
+        let randomFileName = tokenUtils.createRefreshToken(15);
+        let filename = `${randomFileName}${path.extname(file.originalname)}`;
+        // req.file.filename = filename;
+        callback(null, filename);
+    },
+});
+
+const uploadKTPImage = multer({
+    storage: storageKTPImage,
+    fileFilter: (req, file, callback) => {
+        const fileTypes = /jpeg|jpg|png/;
+        const extName = fileTypes.test(
+            path.extname(file.originalname.toLowerCase())
+        );
+        const mimeType = fileTypes.test(file.mimetype);
+        if (extName && mimeType) return callback(null, true);
+        const error =
+            'File gambar yang dapat diupload hanya jpeg, jpg, atau png';
+        req.multerError = error;
+        callback(new Error(error));
+    },
+});
+
+const storageKKImage = multer.diskStorage({
+    destination: (req, file, callback) => {
+        let { uid } = req.body;
+        let filePath = path.join(
+            __dirname,
+            '..',
+            '..',
+            '..',
+            'public',
+            'uploads',
+            'users',
+            uid,
+            'KK'
+        );
+        if (!fs.existsSync(filePath)) {
+            fs.mkdirSync(filePath, { recursive: true });
+        } else {
+            // if exist remove its content
+            fs.emptyDirSync(filePath);
+        }
+        callback(null, filePath);
+    },
+    filename: (req, file, callback) => {
+        let randomFileName = tokenUtils.createRefreshToken(15);
+        let filename = `${randomFileName}${path.extname(file.originalname)}`;
+        // req.file.filename = filename;
+        callback(null, filename);
+    },
+});
+
+const uploadKKImage = multer({
+    storage: storageKKImage,
+    fileFilter: (req, file, callback) => {
+        const fileTypes = /jpeg|jpg|png/;
+        const extName = fileTypes.test(
+            path.extname(file.originalname.toLowerCase())
+        );
+        const mimeType = fileTypes.test(file.mimetype);
+        if (extName && mimeType) return callback(null, true);
+        const error =
+            'File gambar yang dapat diupload hanya jpeg, jpg, atau png';
+        req.multerError = error;
+        callback(new Error(error));
+    },
+});
+
 const storageItemImageKTP = multer.diskStorage({
     destination: (req, file, callback) => {
         let filePath = path.join(
@@ -432,6 +524,8 @@ const uploadItemFileDocumentationEvent = multer({
 module.exports = { 
     uploadItemImage, 
     uploadSignatureImage, 
+    uploadKTPImage, 
+    uploadKKImage, 
     uploadItemFileLampiran, 
     uploadItemLampiranAdministrasi, 
     uploadItemLampiranPengumuman, 
